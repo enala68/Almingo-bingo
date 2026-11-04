@@ -40,5 +40,17 @@ public class HostMain {
 
 		// 2. Lo mostramos por pantalla
 		cartonJugador.mostrarCarton();
+		
+		
+		// PRUEBA BOMBO
+				System.out.println();
+				System.out.println("=== PROBANDO EL BOMBO ===");
+				comun.Bombo bombo = new comun.Bombo();
+				
+				System.out.print("Primeras 5 bolas extraídas: ");
+				for (int i = 0; i < 5; i++) {
+					System.out.print(bombo.sacarBola() + " ");
+				}
+				System.out.println("\nBolas restantes en el bombo: " + bombo.getBolasRestantes());
 	}
 }
