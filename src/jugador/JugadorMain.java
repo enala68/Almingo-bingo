@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.Scanner;
 import comun.Carton;
+import comun.Estado;
 
 public class JugadorMain {
 
@@ -24,7 +25,8 @@ public class JugadorMain {
 		boolean[][] tachados = new boolean[3][9];
 		mostrarCartonOficial(miCarton, tachados);
 		
-		// Próximamente aquí añadiremos el bucle de escucha del Host...
+		// 4. INICIAR EL BUCLE DE ESCUCHA DEL JUEGO
+		iniciarBucleJuego(miCarton, tachados);
 	}
 
 	// PEDIR NOMBRE AL USUARIO
@@ -96,7 +98,131 @@ public class JugadorMain {
 	
 	// BUSCAR Y TACHAR LA BOLA EN EL CARTÓN
 	private static void marcarBolaEnCarton(int bolaExtraida, Carton carton, boolean[][] tachados) {
+		int[][] matrizCarton = carton.getMatriz();
 		
+		for (int fila = 0; fila < Carton.FILAS; fila++) {
+			for (int columna = 0; columna < Carton.COLUMNAS; columna++) {
+				if (matrizCarton[fila][columna] == bolaExtraida) {
+					tachados[fila][columna] = true;
+					System.out.println("✔ ¡Número " + bolaExtraida + " tachado en tu cartón!");
+				}
+			}
+		}
 	}
+	
+	// --- BUCLE DE ESCUCHA ACTIVA DEL CLIENTE ---
+		private static void iniciarBucleJuego(Carton miCarton, boolean[][] tachados) {
+			System.out.println("\n[ESPERANDO] Conectado al Host. Esperando extracción de bolas...");
+			
+			int ultimaVersionVista = 0;
+			boolean juegoActivo = true;
+			
+			while (juegoActivo) {
+				File ficheroEstado = new File(RUTA_ESTADO);
+				
+				if (ficheroEstado.exists()) {
+					// ARRAY QUE ALMACENA LAS 4 LINEAS DEL ESTADO
+					String[] lineasArray = new String[4];
+					
+					try (Scanner lectorEstado = new Scanner(ficheroEstado)) {
+						int indice = 0;
+						while (lectorEstado.hasNextLine() && indice < lineasArray.length) {
+							lineasArray[indice] = lectorEstado.nextLine();
+							indice++;
+						}
+						
+						// RECONSTRUCCIÓN DEL ESTADO ACTUAL
+						Estado estadoActual = Estado.deLineas(lineasArray);
+						
+						// CANCELACIÓN DE LA PARTIDA
+						String faseActual = estadoActual.getFase();
+
+						if (faseActual.equals("CANCELADA")) {
+						    System.out.println("\n⚠️ [AVISO] La partida ha sido cancelada por el Host.");
+						    juegoActivo = false; // FINALIZA EL PROGRAMA DEL JUGADOR
+						    break;
+						} else if (faseActual.equals("FINALIZADA")) {
+						    System.out.println("\n🏁 [AVISO] La partida ha finalizado.");
+						    juegoActivo = false;
+						    break;
+						}
+						
+						// COMPROBACIÓN DE NUEVA VERSION DE LA PARTIDA
+						if (estadoActual.getVersion() > ultimaVersionVista) {
+							ultimaVersionVista = estadoActual.getVersion();
+							
+							System.out.println("\n--------------------------------------------------");
+							System.out.println("📢 [NUEVA BOLA] Partida #" + estadoActual.getIdPartida() + 
+									           " | Fase: " + estadoActual.getFase() + 
+									           " | ¡Ha salido el **" + estadoActual.getUltimaBola() + "**!");
+							
+							int bolaExtraida = estadoActual.getUltimaBola();
+							
+							if (bolaExtraida > 0) {
+								// 1. TACHAR BOLA EN CARTÓN
+								marcarBolaEnCarton(bolaExtraida, miCarton, tachados);
+								
+								// 2. MOSTRAR CARTÓN ACTUALIZADO (XX)
+								miCarton.mostrarCarton(tachados);
+								
+								// 3. COMPROBAR SI HAY LINEA O BINGO
+								if (comprobarLinea(miCarton, tachados)) {
+									System.out.println("✨ ¡¡¡ HAS CANTADO LÍNEA !!! (Responde ésta pregunta de sostenibilidad...)");
+								}
+								
+								if (comprobarBingo(miCarton, tachados)) {
+									System.out.println("🏆 ¡¡¡ HAS CANTADO BINGO COMPLETO !!!");
+									juegoActivo = false;
+								}
+							}
+						}
+						
+					} catch (Exception e) {
+						// Posible conflicto momentáneo si el Host está escribiendo el archivo en este instante
+					}
+				}
+				
+				try {
+					// COMPROBAR CAMBIOS EN EL FICHERO CADA 2 SEG
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {
+					System.out.println("Hilo interrumpido.");
+					break;
+				}
+			}
+		}
+		
+		// COMPROBAR SI HAY LÍNEA
+		private static boolean comprobarLinea(Carton carton, boolean[][] tachados) {
+			int[][] matrizCarton = carton.getMatriz();
+			
+			for (int fila = 0; fila < Carton.FILAS; fila++) {
+				boolean filaCompleta = true;
+				for (int columna = 0; columna < Carton.COLUMNAS; columna++) {
+					if (matrizCarton[fila][columna] != 0 && !tachados[fila][columna]) {
+						filaCompleta = false;
+						break;
+					}
+				}
+				if (filaCompleta) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		// COMPROBAR SI HAY BINGO
+		private static boolean comprobarBingo(Carton carton, boolean[][] tachados) {
+			int[][] matrizCarton = carton.getMatriz();
+			
+			for (int fila = 0; fila < Carton.FILAS; fila++) {
+				for (int columna = 0; columna < Carton.COLUMNAS; columna++) {
+					if (matrizCarton[fila][columna] != 0 && !tachados[fila][columna]) {
+						return false;
+					}
+				}
+			}
+			return true;
+		}
 
 }

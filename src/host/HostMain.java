@@ -6,6 +6,12 @@ import comun.Carton;
 
 public class HostMain {
 
+	// TIEMPO DE ESPERA INICIAL PARA DAR TIEMPO A LOS JUGADORES (20 SEGUNDOS)
+	private static final int TIEMPO_ESPERA_INICIAL_MS = 20000;
+	
+	// TIEMPO DE ESPERA ENTRE BOLA Y BOLA (5 SEGUNDOS)
+	private static final int TIEMPO_ESPERA_MS = 5000;
+
 	public static void main(String[] args) {
 		System.out.println("=== INICIANDO SERVIDOR (HOST) ===");
 
@@ -13,7 +19,7 @@ public class HostMain {
 		System.out.println("\n--- PROBANDO GESTOR DE FICHEROS ---");
 		Estado estadoPrueba = new Estado("INICIO", 1, 0, 1);
 		GestorFicheros.guardarEstado(estadoPrueba);
-		GestorFicheros.guardarBola(99); // Bola de prueba para ver si el append funciona
+		GestorFicheros.guardarBola(99);
 		System.out.println("Ficheros 'estado.txt' y 'bolas.txt' actualizados de prueba.\n");
 
 		// 1. INICIALIZAR ELEMENTOS DE LA PARTIDA REAL
@@ -24,42 +30,62 @@ public class HostMain {
 		// GUARDAR ESTADO DE LA PARTIDA
 		GestorFicheros.guardarEstado(estadoPartida);
 
-		System.out.println("Partida #" + idPartida  + " creada correctamente.");
+		System.out.println("Partida #" + idPartida + " creada correctamente.");
 		System.out.println("Bombo listo con " + bombo.getBolasRestantes() + " bolas.\n");
 
-		// 2. BUCLE PRINCIPAL DE EXTRACCIÓN DE BOLAS Y PERSISTENCIA
-		System.out.println("=== COMIENZA EL JUEGO: ===");
+		// 2. PAUSA INICIAL PARA PERMITIR CONECTAR A LOS CLIENTES
+		System.out.println("=== PREPARANDO PARTIDA ===");
+		System.out.println("Esperando " + (TIEMPO_ESPERA_INICIAL_MS / 1000) + " segundos para que los jugadores se conecten...");
+		
+		try {
+			Thread.sleep(TIEMPO_ESPERA_INICIAL_MS);
+		} catch (InterruptedException e) {
+			System.out.println("El hilo de espera inicial fue interrumpido.");
+		}
+
+		// 3. BUCLE PRINCIPAL DE EXTRACCIÓN DE BOLAS Y PERSISTENCIA HASTA EL FINAL
+		System.out.println("\n=== COMIENZA EL JUEGO: ===");
 		System.out.println("=== EXTRACCIÓN Y PERSISTENCIA DE BOLAS ===");
 
-		for (int ronda = 1; ronda <= 10; ronda++) {
-			if (bombo.quedanBolas()) {
-				int bolaExtraida = bombo.sacarBola();
+		int ronda = 1;
 
-				// ACTUALIZAR ESTADO DE LA PARTIDA
-				estadoPartida.setUltimaBola(bolaExtraida);
-				estadoPartida.setVersion(estadoPartida.getVersion() + 1);
+		// BUCLE HASTA QUE NO QUEDEN BOLAS
+		while (bombo.quedanBolas()) {
+			int bolaExtraida = bombo.sacarBola();
 
-				// PERSISTENCIA: GUARDAR CAMBIOS EN FICHEROS
-				GestorFicheros.guardarEstado(estadoPartida);
-				GestorFicheros.guardarBola(bolaExtraida);
+			// ACTUALIZAR ESTADO DE LA PARTIDA
+			estadoPartida.setUltimaBola(bolaExtraida);
+			estadoPartida.setVersion(estadoPartida.getVersion() + 1);
 
-				System.out.println("Ronda " + ronda + " -> ¡Bola extraída: **" + bolaExtraida + "**! " +
-						"(Fase: " + estadoPartida.getFase() +
-						", Versión: " + estadoPartida.getVersion() + 
-						", Faltan: " + bombo.getBolasRestantes() + " bolas) [Ficheros guardados]");
+			// PERSISTENCIA: GUARDAR CAMBIOS EN FICHEROS
+			GestorFicheros.guardarEstado(estadoPartida);
+			GestorFicheros.guardarBola(bolaExtraida);
 
-				try {
-					// PAUSA DE 1 SEG ENTRE BOLA Y BOLA
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					System.out.println("El hilo fue interrumpido.");
-				}
+			System.out.println("Ronda " + ronda + " -> ¡Bola extraída: **" + bolaExtraida + "**! " +
+					"(Fase: " + estadoPartida.getFase() +
+					", Versión: " + estadoPartida.getVersion() + 
+					", Faltan: " + bombo.getBolasRestantes() + " bolas) [Ficheros guardados]");
+
+			try {
+				// PAUSA CONFIGURABLE ENTRE BOLA Y BOLA
+				Thread.sleep(TIEMPO_ESPERA_MS);
+			} catch (InterruptedException e) {
+				System.out.println("El hilo fue interrumpido.");
 			}
-		}
-		System.out.println("\n=== FIN DE LA SIMULACIÓN DE PRUEBA ===");
-	}
 
-	/*public static void main(String[] args) {
+			ronda++;
+		}
+
+		// CAMBIAR FASE A FINALIZADA CUANDO SE ACABEN LAS BOLAS
+		estadoPartida.setFase("FINALIZADA");
+		estadoPartida.setVersion(estadoPartida.getVersion() + 1);
+		GestorFicheros.guardarEstado(estadoPartida);
+
+		System.out.println("\n=== EL BOMBO SE HA VACIADO - FIN DE LA PARTIDA ===");
+	}
+}
+
+/*public static void main(String[] args) {
 	// 1. Creamos un objeto Estado con valores de prueba
 	Estado estadoOriginal = new Estado("JUGANDO", 5, 42, 1);
 
@@ -107,5 +133,3 @@ public class HostMain {
 			}
 			System.out.println("\nBolas restantes en el bombo: " + bombo.getBolasRestantes());
 }*/
-
-}
