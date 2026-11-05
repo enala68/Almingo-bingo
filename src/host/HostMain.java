@@ -21,7 +21,7 @@ public class HostMain {
 		int idPartida = 1;
 		Estado estadoPartida = new Estado("JUGANDO", 1, 0, idPartida);
 
-		// Guardamos el estado inicial real de la partida
+		// GUARDAR ESTADO DE LA PARTIDA
 		GestorFicheros.guardarEstado(estadoPartida);
 
 		System.out.println("Partida #" + idPartida  + " creada correctamente.");
@@ -35,11 +35,11 @@ public class HostMain {
 			if (bombo.quedanBolas()) {
 				int bolaExtraida = bombo.sacarBola();
 
-				// Actualizamos el estado de la partida en memoria
+				// ACTUALIZAR ESTADO DE LA PARTIDA
 				estadoPartida.setUltimaBola(bolaExtraida);
 				estadoPartida.setVersion(estadoPartida.getVersion() + 1);
 
-				// PERSISTENCIA: Guardamos los cambios en los ficheros con nuestro Gestor
+				// PERSISTENCIA: GUARDAR CAMBIOS EN FICHEROS
 				GestorFicheros.guardarEstado(estadoPartida);
 				GestorFicheros.guardarBola(bolaExtraida);
 
@@ -49,7 +49,7 @@ public class HostMain {
 						", Faltan: " + bombo.getBolasRestantes() + " bolas) [Ficheros guardados]");
 
 				try {
-					// Pausa de 1 segundo entre bola y bola
+					// PAUSA DE 1 SEG ENTRE BOLA Y BOLA
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
 					System.out.println("El hilo fue interrumpido.");
