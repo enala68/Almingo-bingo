@@ -1,4 +1,4 @@
 fase=JUGANDO
 version=11
-ultimaBola=47
+ultimaBola=18
 idPartida=1
