@@ -42,7 +42,7 @@ public class Carton {
 				}
 			}
 		}
-		
+
 		// RELLENAR COLUMNAS
 		for (int col = 0; col < COLUMNAS; col++) {
 			int numsEnCol = 0;
@@ -51,31 +51,31 @@ public class Carton {
 					numsEnCol++;
 				}
 			}
-			
+
 			if (numsEnCol > 0) {
 				// DEFINIR RANGOS
 				int min;
 				if (col == 0) {
-				    min = 1;
+					min = 1;
 				} else {
-				    min = col * 10;
+					min = col * 10;
 				}
-				
+
 				int max;
 				if (col == 8) {
 					max = 90;
 				} else {
 					max = col * 10 + 9;
 				}
-				
+
 				// ARRAY TEMPORAL PARA NUMS DE ÉSTA COLUMNA
 				int[] numsCol = new int[numsEnCol];
-				
+
 				// GENERACION DE NÚMEROS ÚNICOS
 				for (int nums = 0; nums < numsEnCol; nums++) {
 					boolean repetido;
 					int valor;
-					
+
 					do {
 						repetido = false;
 						valor = ThreadLocalRandom.current().nextInt(min, max + 1);
@@ -89,10 +89,10 @@ public class Carton {
 						numsCol[nums] = valor;
 					}
 				}
-				
+
 				// ORDENAR NÚMEROS
 				java.util.Arrays.sort(numsCol);
-				
+
 				// RELLENAR CARTÓN
 				int i = 0;
 				for (int fil = 0; fil < FILAS; fil++) {
@@ -102,21 +102,36 @@ public class Carton {
 				}
 			}
 		}
-		
+
 		return carton;
 	}
 
-	// MÉTODO PARA MOSTRAR EL CARTÓN POR CONSOLA
-	public void mostrarCarton() {
-		for (int i = 0; i < FILAS; i++) {
-			for (int j = 0; j < COLUMNAS; j++) {
-				if (matriz[i][j] == 0) {
-					System.out.print("-\t");
+	// GETTER
+	public int[][] getMatriz() {
+		return matriz;
+	}
+
+	// MOSTRAR EL CARTÓN POR CONSOLA
+	public void mostrarCarton(boolean[][] tachados) {
+		System.out.println("+----+----+----+----+----+----+----+----+----+");
+		for (int fil = 0; fil < 3; fil++) {
+			System.out.print("|");
+			for (int j = 0; j < 9; j++) {
+				int num = matriz[fil][j];
+				if (num == 0) {
+					System.out.print(" -- |"); // Hueco vacío
+				} else if (tachados != null && tachados[fil][j]) {
+					System.out.print(" XX |"); // Número tachado porque ya salió la bola
 				} else {
-					System.out.print(matriz[i][j] + "\t");
+					if (num < 10) {
+						System.out.print(" 0" + num + " |");
+					} else {
+						System.out.print(" " + num + " |");
+					}
 				}
 			}
 			System.out.println();
+			System.out.println("+----+----+----+----+----+----+----+----+----+");
 		}
 	}
 }
