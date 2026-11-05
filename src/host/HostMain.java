@@ -2,134 +2,124 @@ package host;
 
 import comun.Bombo;
 import comun.Estado;
-import comun.Carton;
+import comun.GestorFicheros;
+import comun.Utilidades;
 
+/**
+ * SERVIDOR (HOST) DEL BINGO
+ * ---------------------------------------------------------------------
+ * Dirige la partida. El flujo completo es:
+ *
+ *   1. Preparar carpetas y ficheros.
+ *   2. Crear el bombo y el estado inicial (fase ESPERANDO).
+ *   3. Esperar unos segundos a que los jugadores se conecten.
+ *   4. Sacar bolas una a una (fase JUGANDO) hasta vaciar el bombo.
+ *   5. Marcar la partida como FINALIZADA.
+ *
+ * La comunicación con los jugadores es indirecta: el Host solo escribe
+ * ficheros (host/estado.txt y host/bolas.txt) y los jugadores los leen.
+ *
+ * Cada paso está en su propio método para que main() se lea como un
+ * índice de lo que hace el programa.
+ */
 public class HostMain {
 
-	// TIEMPO DE ESPERA INICIAL PARA DAR TIEMPO A LOS JUGADORES (20 SEGUNDOS)
+	/** Espera inicial para que los jugadores arranquen su programa (20 s). */
 	private static final int TIEMPO_ESPERA_INICIAL_MS = 20000;
-	
-	// TIEMPO DE ESPERA ENTRE BOLA Y BOLA (5 SEGUNDOS)
-	private static final int TIEMPO_ESPERA_MS = 5000;
+
+	/** Pausa entre una bola y la siguiente (5 s). */
+	private static final int TIEMPO_ESPERA_MS = 500;
+
+	/** Identificador de la partida (de momento fijo). */
+	private static final int ID_PARTIDA = 1;
 
 	public static void main(String[] args) {
 		System.out.println("=== INICIANDO SERVIDOR (HOST) ===");
 
-		// 0. PRUEBA PREVIA DEL GESTOR DE FICHEROS
-		System.out.println("\n--- PROBANDO GESTOR DE FICHEROS ---");
-		Estado estadoPrueba = new Estado("INICIO", 1, 0, 1);
-		GestorFicheros.guardarEstado(estadoPrueba);
-		GestorFicheros.guardarBola(99);
-		System.out.println("Ficheros 'estado.txt' y 'bolas.txt' actualizados de prueba.\n");
+		// 1. Preparar carpetas y limpiar el historial de bolas anterior
+		GestorFicheros.crearDirectorios();
+		GestorFicheros.reiniciarBolas();
 
-		// 1. INICIALIZAR ELEMENTOS DE LA PARTIDA REAL
+		// 2. Crear bombo y estado inicial
 		Bombo bombo = new Bombo();
-		int idPartida = 1;
-		Estado estadoPartida = new Estado("JUGANDO", 1, 0, idPartida);
+		Estado estado = new Estado(Estado.FASE_ESPERANDO, 0, 0, ID_PARTIDA);
+		GestorFicheros.guardarEstado(estado);
 
-		// GUARDAR ESTADO DE LA PARTIDA
-		GestorFicheros.guardarEstado(estadoPartida);
+		System.out.println("Partida #" + ID_PARTIDA + " creada correctamente.");
+		System.out.println("Bombo listo con " + bombo.getBolasRestantes() + " bolas.");
 
-		System.out.println("Partida #" + idPartida + " creada correctamente.");
-		System.out.println("Bombo listo con " + bombo.getBolasRestantes() + " bolas.\n");
+		// 3. Dar tiempo a los jugadores
+		esperarJugadores();
 
-		// 2. PAUSA INICIAL PARA PERMITIR CONECTAR A LOS CLIENTES
-		System.out.println("=== PREPARANDO PARTIDA ===");
-		System.out.println("Esperando " + (TIEMPO_ESPERA_INICIAL_MS / 1000) + " segundos para que los jugadores se conecten...");
-		
-		try {
-			Thread.sleep(TIEMPO_ESPERA_INICIAL_MS);
-		} catch (InterruptedException e) {
-			System.out.println("El hilo de espera inicial fue interrumpido.");
-		}
+		// 4. Sacar bolas hasta que se acabe el bombo
+		jugarRondas(bombo, estado);
 
-		// 3. BUCLE PRINCIPAL DE EXTRACCIÓN DE BOLAS Y PERSISTENCIA HASTA EL FINAL
-		System.out.println("\n=== COMIENZA EL JUEGO: ===");
-		System.out.println("=== EXTRACCIÓN Y PERSISTENCIA DE BOLAS ===");
+		// 5. Cerrar la partida
+		finalizarPartida(estado);
+	}
+
+	/**
+	 * Pausa inicial. Durante este tiempo los jugadores pueden arrancar
+	 * JugadorMain, escribir su nombre y ver su cartón antes de que salga
+	 * la primera bola. El estado sigue en ESPERANDO.
+	 */
+	private static void esperarJugadores() {
+		System.out.println("\n=== PREPARANDO PARTIDA ===");
+		System.out.println("Esperando " + (TIEMPO_ESPERA_INICIAL_MS / 1000)
+				+ " segundos para que los jugadores se conecten...");
+		Utilidades.pausar(TIEMPO_ESPERA_INICIAL_MS);
+	}
+
+	/**
+	 * Bucle principal: en cada ronda saca una bola, actualiza el estado y
+	 * lo guarda en los ficheros. Se repite hasta que el bombo está vacío.
+	 *
+	 * IMPORTANTE - ORDEN DE GUARDADO: primero se guarda la bola en
+	 * bolas.txt y DESPUÉS el estado. Los jugadores detectan novedades al
+	 * ver que sube la versión del estado; si el estado se guardara antes,
+	 * podrían leer la nueva versión cuando la bola aún no está en bolas.txt.
+	 *
+	 * @param bombo  bombo del que se extraen las bolas
+	 * @param estado estado de la partida (se modifica en cada ronda)
+	 */
+	private static void jugarRondas(Bombo bombo, Estado estado) {
+		System.out.println("\n=== COMIENZA EL JUEGO ===");
+
+		// A partir de aquí la partida está en marcha
+		estado.setFase(Estado.FASE_JUGANDO);
 
 		int ronda = 1;
-
-		// BUCLE HASTA QUE NO QUEDEN BOLAS
 		while (bombo.quedanBolas()) {
-			int bolaExtraida = bombo.sacarBola();
+			int bola = bombo.sacarBola();
 
-			// ACTUALIZAR ESTADO DE LA PARTIDA
-			estadoPartida.setUltimaBola(bolaExtraida);
-			estadoPartida.setVersion(estadoPartida.getVersion() + 1);
+			// 1) Guardar la bola en el historial
+			GestorFicheros.guardarBola(bola);
 
-			// PERSISTENCIA: GUARDAR CAMBIOS EN FICHEROS
-			GestorFicheros.guardarEstado(estadoPartida);
-			GestorFicheros.guardarBola(bolaExtraida);
+			// 2) Actualizar y guardar el estado (la versión sube +1)
+			estado.setUltimaBola(bola);
+			estado.incrementarVersion();
+			GestorFicheros.guardarEstado(estado);
 
-			System.out.println("Ronda " + ronda + " -> ¡Bola extraída: **" + bolaExtraida + "**! " +
-					"(Fase: " + estadoPartida.getFase() +
-					", Versión: " + estadoPartida.getVersion() + 
-					", Faltan: " + bombo.getBolasRestantes() + " bolas) [Ficheros guardados]");
+			System.out.println("Ronda " + ronda + " -> Bola: " + bola
+					+ " (Versión: " + estado.getVersion()
+					+ ", Faltan: " + bombo.getBolasRestantes() + ")");
 
-			try {
-				// PAUSA CONFIGURABLE ENTRE BOLA Y BOLA
-				Thread.sleep(TIEMPO_ESPERA_MS);
-			} catch (InterruptedException e) {
-				System.out.println("El hilo fue interrumpido.");
-			}
-
+			Utilidades.pausar(TIEMPO_ESPERA_MS);
 			ronda++;
 		}
+	}
 
-		// CAMBIAR FASE A FINALIZADA CUANDO SE ACABEN LAS BOLAS
-		estadoPartida.setFase("FINALIZADA");
-		estadoPartida.setVersion(estadoPartida.getVersion() + 1);
-		GestorFicheros.guardarEstado(estadoPartida);
+	/**
+	 * Marca la partida como FINALIZADA. Se sube la versión para que los
+	 * jugadores noten el cambio de fase.
+	 *
+	 * @param estado estado de la partida
+	 */
+	private static void finalizarPartida(Estado estado) {
+		estado.setFase(Estado.FASE_FINALIZADA);
+		estado.incrementarVersion();
+		GestorFicheros.guardarEstado(estado);
 
 		System.out.println("\n=== EL BOMBO SE HA VACIADO - FIN DE LA PARTIDA ===");
 	}
 }
-
-/*public static void main(String[] args) {
-	// 1. Creamos un objeto Estado con valores de prueba
-	Estado estadoOriginal = new Estado("JUGANDO", 5, 42, 1);
-
-	System.out.println("=== 1. ESTADO ORIGINAL ===");
-	System.out.println("Fase: " + estadoOriginal.getFase());
-	System.out.println("Versión: " + estadoOriginal.getVersion());
-	System.out.println("Última bola: " + estadoOriginal.getUltimaBola());
-	System.out.println("ID Partida: " + estadoOriginal.getIdPartida());
-
-	// 2. Probamos el método aLineas() (convertir a array de texto)
-	String[] lineas = estadoOriginal.aLineas();
-	System.out.println("\n=== 2. CONVERTIDO A LÍNEAS (Array) ===" );
-	for (String linea : lineas) {
-		System.out.println(linea);
-	}
-
-	// 3. Probamos el método deLineas() (reconstruir el objeto desde el array)
-	Estado estadoRecuperado = Estado.deLineas(lineas);
-	System.out.println("\n=== 3. OBJETO RECUPERADO DE LAS LÍNEAS ===");
-	System.out.println("Fase recuperada: " + estadoRecuperado.getFase());
-	System.out.println("Versión recuperada: " + estadoRecuperado.getVersion());
-	System.out.println("Última bola recuperada: " + estadoRecuperado.getUltimaBola());
-	System.out.println("ID Partida recuperado: " + estadoRecuperado.getIdPartida());
-
-
-	// PRUEBA CARTON
-	System.out.println();
-	System.out.println("=== PROBANDO LA GENERACIÓN DE UN CARTÓN ===");
-
-	// 1. Generamos el cartón aleatorio
-	Carton cartonJugador = Carton.generarCarton();
-
-	// 2. Lo mostramos por pantalla
-	cartonJugador.mostrarCarton();
-
-
-	// PRUEBA BOMBO
-			System.out.println();
-			System.out.println("=== PROBANDO EL BOMBO ===");
-			comun.Bombo bombo = new comun.Bombo();
-
-			System.out.print("Primeras 5 bolas extraídas: ");
-			for (int i = 0; i < 5; i++) {
-				System.out.print(bombo.sacarBola() + " ");
-			}
-			System.out.println("\nBolas restantes en el bombo: " + bombo.getBolasRestantes());
-}*/
