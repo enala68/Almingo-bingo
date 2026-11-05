@@ -93,4 +93,10 @@ public class JugadorMain {
 		System.out.println("\nTu cartón:");
 		carton.mostrarCarton(tachados);
 	}
+	
+	// BUSCAR Y TACHAR LA BOLA EN EL CARTÓN
+	private static void marcarBolaEnCarton(int bolaExtraida, Carton carton, boolean[][] tachados) {
+		
+	}
+
 }
