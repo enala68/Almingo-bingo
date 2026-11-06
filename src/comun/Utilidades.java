@@ -1,20 +1,14 @@
 package comun;
 
-/**
+/*
  * UTILIDADES COMUNES
- * ---------------------------------------------------------------------
- * Pequeñas herramientas que usan varias clases. De momento solo la pausa,
- * que antes estaba repetida (con su try-catch) en HostMain y JugadorMain.
+ * FUNCIONES MULTICLASES.
  */
 public class Utilidades {
 
-	/**
-	 * Detiene el programa durante unos milisegundos.
-	 * Thread.sleep obliga a capturar InterruptedException (error que ocurre
-	 * si otro hilo interrumpe la espera). Al capturarla aquí, el resto del
-	 * código se mantiene limpio.
-	 *
-	 * @param milisegundos tiempo de espera (1000 ms = 1 segundo)
+	/*
+	 * DETIENE EL PROGRAMA
+	 * Thread.sleep CAPTURA InterruptedException (SI OTRA FUNCION INTERRUMPE LA ESPERA).
 	 */
 	public static void pausar(int milisegundos) {
 		try {

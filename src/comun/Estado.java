@@ -3,73 +3,58 @@ package comun;
 /**
  * ESTADO GLOBAL DE LA PARTIDA
  * ---------------------------------------------------------------------
- * Esta clase es una "fotografía" de la partida en un momento concreto.
- * El Host la escribe en el fichero host/estado.txt cada vez que algo
- * cambia, y los Jugadores la leen para enterarse de lo que ocurre.
+ * HOST ESCRIBE ESTADO EN host/estado.txt CADA VEZ QUE ALGO CAMBIA Y JUGADORES LO LEEN.
  *
- * Se guarda en el fichero como 4 líneas de texto con formato clave=valor:
+ * FORMATO DE GUARDADO (clave=valor):
  *     fase=JUGANDO
  *     version=7
  *     ultimaBola=42
  *     idPartida=1
  *
- * IDEA CLAVE: "version" sube +1 cada vez que el estado cambia. Así, un
- * jugador solo tiene que comparar la versión que ya vio con la del fichero
- * para saber si hay algo nuevo, sin comparar el resto de campos.
+ * "version" SUBE +1 CADA VEZ QUE ESTADO CAMBIA PARA QUE JUGADOR SEPA SI HAY ALGO NUEVO.
  */
 public class Estado {
 
 	// ---------------------------------------------------------------
-	// CONSTANTES DE FASE
-	// Se usan en lugar de escribir el texto "a mano" por todo el código.
-	// Si te equivocas al teclear una constante, Java te avisa al compilar;
-	// si te equivocas al teclear un texto ("FINALISADA"), el error pasaría
-	// desapercibido y el programa se comportaría raro.
+	// CONSTANTES DE FASE:
 	// ---------------------------------------------------------------
-
-	/** El Host ha creado la partida pero aún no ha empezado a sacar bolas. */
+	
+	/* HOST HA CREADO PARTIDA PERO AÚN NO EMPIEZA A SACAR BOLAS. */
 	public static final String FASE_ESPERANDO = "ESPERANDO";
 
-	/** Se están sacando bolas del bombo. */
+	/* SE ESTÁN SACANDO BOLAS. */
 	public static final String FASE_JUGANDO = "JUGANDO";
 
-	/** Reservada: se está validando una reclamación (línea o bingo). */
+	/* VALIDANDO UNA RECLAMACIÇON (LINEA O BINGO). */
 	public static final String FASE_VALIDANDO = "VALIDANDO";
 
-	/** El bombo se ha vaciado o alguien ha ganado: la partida terminó. */
+	/* PARTIDA TERMINÓ. */
 	public static final String FASE_FINALIZADA = "FINALIZADA";
 
-	/** El Host ha interrumpido la partida manualmente. */
+	/* HOST INTERRUMPE PARTIDA MANUALMENTE. */
 	public static final String FASE_CANCELADA = "CANCELADA";
 
-	/** Número de líneas que ocupa el estado dentro del fichero. */
+	/* NUMERO DE LINEAS DE ESTADO EN FICHERO. */
 	public static final int NUM_LINEAS = 4;
 
 	// ---------------------------------------------------------------
 	// ATRIBUTOS
 	// ---------------------------------------------------------------
-	private String fase;      // En qué momento está la partida (ver constantes FASE_*)
-	private int version;      // Contador que sube +1 con cada cambio
-	private int ultimaBola;   // Última bola extraída (1-90). 0 = todavía ninguna
-	private int idPartida;    // Identificador de la partida actual
+	private String fase;      // MOMENTO EN QUE SE ENCUENTRA LA PARTIDA
+	private int version;      // CONTADOR DE CAMBIOS DE LA PARTIDA (+1)
+	private int ultimaBola;   // ÚLTIMA BOLA EXTRAIDA (1-90). 0 = NINGUNA TODAVÍA
+	private int idPartida;    // ID DE LA PARTIDA ACTUAL
 
 	// ---------------------------------------------------------------
 	// CONSTRUCTORES
 	// ---------------------------------------------------------------
 
-	/** Crea un estado "en blanco": esperando, versión 0, sin bolas. */
+	/* CREA ESTADO EN BLANCO: esperando, versión 0, sin bolas. */
 	public Estado() {
 		this(FASE_ESPERANDO, 0, 0, 0);
 	}
 
-	/**
-	 * Crea un estado con todos sus valores.
-	 *
-	 * @param fase       fase de la partida (usa las constantes FASE_*)
-	 * @param version    número de versión
-	 * @param ultimaBola última bola sacada (0 si ninguna)
-	 * @param idPartida  identificador de la partida
-	 */
+	/* CREA ESTADO COMPLETO */
 	public Estado(String fase, int version, int ultimaBola, int idPartida) {
 		this.fase = fase;
 		this.version = version;
@@ -92,25 +77,16 @@ public class Estado {
 	public int getIdPartida() { return idPartida; }
 	public void setIdPartida(int idPartida) { this.idPartida = idPartida; }
 
-	/**
-	 * Método de comodidad: sube la versión en 1.
-	 * Se llama cada vez que el Host cambia algo del estado, para que los
-	 * jugadores se den cuenta de que hay novedades.
-	 */
+	/* INCREMETA VERSION EN 1 */
 	public void incrementarVersion() {
 		this.version++;
 	}
 
 	// ---------------------------------------------------------------
-	// CONVERSIÓN A / DESDE TEXTO (para guardar en el fichero)
+	// CONVERSIÓN A LINEAS PARA ESCRIBIR EN FICHERO
 	// ---------------------------------------------------------------
 
-	/**
-	 * Convierte el objeto en un array de 4 líneas de texto listas para
-	 * escribirse en el fichero.
-	 *
-	 * @return array con las líneas "fase=..", "version=..", etc.
-	 */
+	/* ESCRIBE ARRAY DE 4 LINEAS */
 	public String[] aLineas() {
 		String[] lineas = new String[NUM_LINEAS];
 		lineas[0] = "fase=" + fase;
@@ -120,31 +96,17 @@ public class Estado {
 		return lineas;
 	}
 
-	/**
-	 * Reconstruye un objeto Estado a partir de las líneas leídas del fichero.
-	 * Es la operación inversa de aLineas().
-	 *
-	 * Cada línea tiene el formato "clave=valor". Se parte por el primer "="
-	 * y según la clave se rellena el atributo correspondiente. Las líneas
-	 * nulas o con formato desconocido se ignoran.
-	 *
-	 * @param lineas array de líneas leídas del fichero
-	 * @return el Estado reconstruido
-	 * @throws NumberFormatException si un valor numérico no es un número
-	 *         válido (p. ej. fichero a medio escribir). Quien llame a este
-	 *         método debe estar preparado para capturarla.
-	 */
+	/* LEE ARRAY DE 4 LINEAS */
 	public static Estado deLineas(String[] lineas) {
 		Estado estado = new Estado();
 
 		for (int i = 0; i < lineas.length; i++) {
-			// Si una línea no llegó a leerse, pasamos a la siguiente
+			// SI UNA LINEA NO LLEGÓ A LEERSE PASA A LA SIGUIENTE
 			if (lineas[i] == null) {
 				continue;
 			}
 
 			// "version=7".split("=", 2) -> ["version", "7"]
-			// El 2 limita a dos trozos: solo se parte por el primer "="
 			String[] partes = lineas[i].split("=", 2);
 
 			if (partes.length == 2) {
