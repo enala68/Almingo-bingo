@@ -3,38 +3,33 @@ package host;
 import comun.Bombo;
 import comun.Estado;
 import comun.GestorFicheros;
+import comun.Reglas;
 import comun.Utilidades;
 
 /*
  * SERVIDOR (HOST) DEL BINGO
- * 
- * HOST ESCRIBE EN FICHEROS (host/estado.txt y host/bolas.txt) Y LOS JUGADORES LOS LEEN.
+ *
+ * EL HOST ESCRIBE EN FICHEROS (host/estado.txt Y host/bolas.txt) Y LOS JUGADORES LOS LEEN.
+ * LOS TIEMPOS SE CONFIGURAN EN LA CLASE Reglas.
+ *
  * FLUJO DE LA PARTIDA:
- *
- *   1. PREPARAR CARPETAS Y FICHEROS.
+ *   1. PREPARAR CARPETAS Y LIMPIAR RESTOS DE LA PARTIDA ANTERIOR.
  *   2. CREAR BOMBO Y ESTADO INICIAL (FASE ESPERANDO).
- *   3. ESPERAR 20 SEG A QUE LOS JUGADORES SE CONECTEN.
- *   4. SACAR BOLAS HASTA VACIAR BOMBO (FASE JUGANDO).
- *   5. MARCAR PARTIDA COMO FINALIZADA.
- *
+ *   3. ESPERAR A QUE LOS JUGADORES SE CONECTEN (SOLO PUEDEN ENTRAR EN ESTA FASE).
+ *   4. SACAR BOLAS HASTA VACIAR EL BOMBO (FASE JUGANDO).
+ *   5. MARCAR LA PARTIDA COMO FINALIZADA.
  */
 public class HostMain {
 
-	/* ESPERA INICIAL PARA QUE LOS JUGADORES INICIEN SU MAIN (20 SEG). */
-	private static final int TIEMPO_ESPERA_INICIAL_MS = 20000;
-
-	/* PAUSA ENTRE BOLAS (0.5 s). */
-	private static final int TIEMPO_ESPERA_MS = 500;
-
-	/* IDENTIFICADOR DE LA PARTIDA (de momento fijo). */
+	/* IDENTIFICADOR DE LA PARTIDA (DE MOMENTO FIJO). */
 	private static final int ID_PARTIDA = 1;
 
 	public static void main(String[] args) {
 		System.out.println("=== INICIANDO SERVIDOR (HOST) ===");
 
-		// 1. PREPARAR CARPETAS Y LIMPIAR HISTORIAL DE BOLAS ANTERIOR
+		// 1. PREPARAR CARPETAS Y LIMPIAR LOS RESTOS DE LA PARTIDA ANTERIOR
 		GestorFicheros.crearDirectorios();
-		GestorFicheros.reiniciarBolas();
+		GestorFicheros.limpiarPartidaAnterior();
 
 		// 2. CREAR BOMBO Y ESTADO INICIAL
 		Bombo bombo = new Bombo();
@@ -47,7 +42,7 @@ public class HostMain {
 		// 3. DAR TIEMPO A LOS JUGADORES
 		esperarJugadores();
 
-		// 4. SACARA BOLAS HASTA QUE SE ACABE EL BOMBO
+		// 4. SACAR BOLAS HASTA QUE SE ACABE EL BOMBO
 		jugarRondas(bombo, estado);
 
 		// 5. CERRAR LA PARTIDA
@@ -55,20 +50,24 @@ public class HostMain {
 	}
 
 	/*
-	 * PAUSA INICIAL PARA QUE JUGADORES:
-	 * INICIEN MAIN, ESCRIBAN NOMBRE, VEAN SU  ARTÓN ANTES DE LA PRIMERA BOLA.
+	 * PAUSA INICIAL PARA QUE LOS JUGADORES:
+	 * ARRANQUEN SU PROGRAMA, ESCRIBAN SU NOMBRE Y VEAN SU CARTÓN ANTES DE LA PRIMERA BOLA.
+	 * UNA VEZ EMPIEZA EL JUEGO, YA NO SE PUEDE ENTRAR A LA PARTIDA.
 	 */
 	private static void esperarJugadores() {
 		System.out.println("\n=== PREPARANDO PARTIDA ===");
-		System.out.println("Esperando " + (TIEMPO_ESPERA_INICIAL_MS / 1000)
+		System.out.println("Esperando " + (Reglas.TIEMPO_ESPERA_INICIAL_MS / 1000)
 				+ " segundos para que los jugadores se conecten...");
-		Utilidades.pausar(TIEMPO_ESPERA_INICIAL_MS);
+		Utilidades.pausar(Reglas.TIEMPO_ESPERA_INICIAL_MS);
 	}
 
 	/*
-	 * BUCLE PRINCIPAL:
-	 * 1. SACA BOLA
-	 * 2. ACTUALIZA ESTADO
+	 * BUCLE PRINCIPAL. EN CADA RONDA:
+	 * 1. SACA UNA BOLA DEL BOMBO.
+	 * 2. LA GUARDA EN bolas.txt (PRIMERO LA BOLA...).
+	 * 3. ACTUALIZA Y GUARDA EL ESTADO (...Y DESPUÉS EL ESTADO, PARA QUE CUANDO
+	 *    UN JUGADOR VEA LA VERSIÓN NUEVA, LA BOLA YA ESTÉ EN EL HISTORIAL).
+	 * 4. ESPERA ANTES DE SACAR LA SIGUIENTE.
 	 */
 	private static void jugarRondas(Bombo bombo, Estado estado) {
 		System.out.println("\n=== COMIENZA EL JUEGO ===");
@@ -80,10 +79,10 @@ public class HostMain {
 		while (bombo.quedanBolas()) {
 			int bola = bombo.sacarBola();
 
-			// 1. GUARDAR BOLA EN HISTORIAL
+			// 1. GUARDAR LA BOLA EN EL HISTORIAL
 			GestorFicheros.guardarBola(bola);
 
-			// 2. ACTUALIZAR ESTADO (VERSION SUBE +1)
+			// 2. ACTUALIZAR EL ESTADO (LA VERSIÓN SUBE +1)
 			estado.setUltimaBola(bola);
 			estado.incrementarVersion();
 			GestorFicheros.guardarEstado(estado);
@@ -92,12 +91,12 @@ public class HostMain {
 					+ " (Versión: " + estado.getVersion()
 					+ ", Faltan: " + bombo.getBolasRestantes() + ")");
 
-			Utilidades.pausar(TIEMPO_ESPERA_MS);
+			Utilidades.pausar(Reglas.TIEMPO_ENTRE_BOLAS_MS);
 			ronda++;
 		}
 	}
 
-	/* MARCA ESTADO COMO FINALIZADA. */
+	/* MARCA LA PARTIDA COMO FINALIZADA Y SUBE LA VERSIÓN PARA QUE LOS JUGADORES SE ENTEREN. */
 	private static void finalizarPartida(Estado estado) {
 		estado.setFase(Estado.FASE_FINALIZADA);
 		estado.incrementarVersion();

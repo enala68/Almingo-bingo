@@ -25,7 +25,7 @@ public class Estado {
 	/* SE ESTÁN SACANDO BOLAS. */
 	public static final String FASE_JUGANDO = "JUGANDO";
 
-	/* VALIDANDO UNA RECLAMACIÇON (LINEA O BINGO). */
+	/* VALIDANDO UNA RECLAMACIÓN (LINEA O BINGO). */
 	public static final String FASE_VALIDANDO = "VALIDANDO";
 
 	/* PARTIDA TERMINÓ. */
@@ -77,7 +77,7 @@ public class Estado {
 	public int getIdPartida() { return idPartida; }
 	public void setIdPartida(int idPartida) { this.idPartida = idPartida; }
 
-	/* INCREMETA VERSION EN 1 */
+	/* INCREMENTA VERSION EN 1 */
 	public void incrementarVersion() {
 		this.version++;
 	}

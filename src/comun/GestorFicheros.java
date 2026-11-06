@@ -9,14 +9,15 @@ import java.util.Scanner;
  * GESTOR DE FICHEROS
  * ---------------------------------------------------------------------
  * ÚNICA CLASE QUE LEE Y ESCRIBE FICHEROS.
- * TANTO HOST COMO JUGADOR LO UTILIZAN.
+ * TANTO EL HOST COMO EL JUGADOR LA UTILIZAN.
  *
  * ESTRUCTURA DE FICHEROS:
- *   host/estado.txt            -> ESTADO ACTUAL DE LA PARTIDA
- *   host/bolas.txt             -> HISTORIAL DE BOLAS
- *   host/cartones/<nombre>.txt -> COPIA DE CADA CARTON PARA VALIDAR
- *   jugadores/<nombre>.txt     -> cCARTON DE CADA JUGADOR
- *   reclamaciones/             -> ficheros del flujo de línea/bingo (pendiente)
+ *   host/estado.txt              -> ESTADO ACTUAL DE LA PARTIDA
+ *   host/bolas.txt               -> HISTORIAL DE BOLAS
+ *   host/cartones/<nombre>.txt   -> COPIA DE CADA CARTÓN PARA VALIDAR
+ *   host/respuestas/<nombre>.txt -> RESPUESTAS S/N DE CADA JUGADOR (UNA LÍNEA POR BOLA: "42;S")
+ *   jugadores/<nombre>.txt       -> CARTÓN DE CADA JUGADOR
+ *   reclamaciones/               -> FICHEROS DEL FLUJO DE LÍNEA/BINGO (PENDIENTE)
  */
 public class GestorFicheros {
 
@@ -25,6 +26,7 @@ public class GestorFicheros {
 	// ---------------------------------------------------------------
 	public static final String DIR_HOST = "host/";
 	public static final String DIR_CARTONES_HOST = "host/cartones/";
+	public static final String DIR_RESPUESTAS = "host/respuestas/";
 	public static final String DIR_JUGADORES = "jugadores/";
 	public static final String DIR_RECLAMACIONES = "reclamaciones/";
 
@@ -37,24 +39,60 @@ public class GestorFicheros {
 
 	/*
 	 * CREA TODAS LAS CARPETAS DEL PROYECTO SI NO EXISTEN TODAVÍA.
-	 * AL ARRANCAR HOST Y JUGADOR.
+	 * SE LLAMA AL ARRANCAR EL HOST Y EL JUGADOR.
 	 * mkdirs() CREA TAMBIÉN LAS CARPETAS INTERMEDIAS Y NO FALLA SI YA EXISTEN.
 	 */
 	public static void crearDirectorios() {
 		new File(DIR_HOST).mkdirs();
 		new File(DIR_CARTONES_HOST).mkdirs();
+		new File(DIR_RESPUESTAS).mkdirs();
 		new File(DIR_JUGADORES).mkdirs();
 		new File(DIR_RECLAMACIONES).mkdirs();
 	}
 
+	/*
+	 * BORRA LOS RESTOS DE LA PARTIDA ANTERIOR PARA EMPEZAR DE CERO:
+	 * 1. ELIMINA EL ESTADO VIEJO (host/estado.txt). ASÍ UN JUGADOR QUE ARRANQUE
+	 *    ANTES QUE EL HOST NO LEE UNA PARTIDA TERMINADA O A MEDIAS.
+	 * 2. VACÍA EL HISTORIAL DE BOLAS.
+	 * 3. BORRA CARTONES (jugadores/ Y host/cartones/) Y RESPUESTAS.
+	 * LO LLAMA EL HOST AL ARRANCAR.
+	 */
+	public static void limpiarPartidaAnterior() {
+		new File(RUTA_ESTADO).delete();
+		reiniciarBolas();
+		borrarFicherosDeCarpeta(DIR_JUGADORES);
+		borrarFicherosDeCarpeta(DIR_CARTONES_HOST);
+		borrarFicherosDeCarpeta(DIR_RESPUESTAS);
+	}
+
+	/*
+	 * BORRA TODOS LOS FICHEROS DE UNA CARPETA SIN BORRAR LA CARPETA.
+	 * listFiles() DEVUELVE UN ARRAY CON LO QUE HAY DENTRO (O null SI LA CARPETA NO EXISTE).
+	 */
+	private static void borrarFicherosDeCarpeta(String ruta) {
+		File[] ficheros = new File(ruta).listFiles();
+		if (ficheros == null) {
+			return;
+		}
+		for (File fichero : ficheros) {
+			if (fichero.isFile()) {
+				fichero.delete();
+			}
+		}
+	}
+
 	// =================================================================
-	// OPERACIONES: LEER Y ESCRIBIR
+	// OPERACIONES BÁSICAS: LEER Y ESCRIBIR LÍNEAS
+	// TODO LO DEMÁS SE CONSTRUYE ENCIMA DE ESTAS DOS.
 	// =================================================================
 
-	/* LEE LINEAS DE TEXTO HASTA UN MÁXIMO.
-	 * COMO NO SABEMOS LINEAS TOTALES:
-	 * 1. ARRAY "TEMPORAL" DE TAMAÑO MÁXIMO
-	 * 2. SE COPIA A ARRAY DE TAMAÑO EXACTO
+	/*
+	 * LEE LÍNEAS DE TEXTO DE UN FICHERO HASTA UN MÁXIMO.
+	 * COMO NO USAMOS LISTAS Y NO SABEMOS CUÁNTAS LÍNEAS HABRÁ:
+	 * 1. SE LEE EN UN ARRAY "TEMPORAL" DE TAMAÑO MÁXIMO.
+	 * 2. SE COPIA A UN ARRAY DE TAMAÑO EXACTO.
+	 * DEVUELVE null SI EL FICHERO NO EXISTE O NO SE PUDO LEER.
 	 */
 	private static String[] leerLineas(String ruta, int maxLineas) {
 		File fichero = new File(ruta);
@@ -65,6 +103,7 @@ public class GestorFicheros {
 		String[] temporal = new String[maxLineas];
 		int total = 0;
 
+		// try-with-resources: EL Scanner SE CIERRA SOLO AL TERMINAR EL BLOQUE
 		try (Scanner lector = new Scanner(fichero)) {
 			while (lector.hasNextLine() && total < maxLineas) {
 				temporal[total] = lector.nextLine();
@@ -74,7 +113,7 @@ public class GestorFicheros {
 			return null;
 		}
 
-		// COPIAR ARRAY CON TAMAÑO JUSTO
+		// COPIAR A UN ARRAY CON EL TAMAÑO JUSTO
 		String[] resultado = new String[total];
 		for (int i = 0; i < total; i++) {
 			resultado[i] = temporal[i];
@@ -82,8 +121,14 @@ public class GestorFicheros {
 		return resultado;
 	}
 
-	/* ESCRIBE ARRAY DE LINEAS EN FICHERO. */
+	/*
+	 * ESCRIBE UN ARRAY DE LÍNEAS EN UN FICHERO.
+	 * anadir = true  -> AÑADE AL FINAL DE LO QUE YA HAY.
+	 * anadir = false -> BORRA LO ANTERIOR Y ESCRIBE DE CERO.
+	 * DEVUELVE TRUE SI SE ESCRIBIÓ BIEN.
+	 */
 	private static boolean escribirLineas(String ruta, String[] lineas, boolean anadir) {
+		// try-with-resources: EL PrintWriter SE CIERRA (Y GUARDA) SOLO AL TERMINAR
 		try (PrintWriter escritor = new PrintWriter(new FileWriter(ruta, anadir))) {
 			for (String linea : lineas) {
 				escritor.println(linea);
@@ -99,12 +144,17 @@ public class GestorFicheros {
 	// ESTADO DE LA PARTIDA
 	// =================================================================
 
-	/** GUARDA ESTADO ACTUAL EN host/estado.txt. */
+	/* GUARDA EL ESTADO ACTUAL EN host/estado.txt. */
 	public static void guardarEstado(Estado estado) {
 		escribirLineas(RUTA_ESTADO, estado.aLineas(), false);
 	}
 
-	/* LEE ESTADO ACTUAL DESDE host/estado.txt. */
+	/*
+	 * LEE EL ESTADO ACTUAL DESDE host/estado.txt.
+	 * DEVUELVE null SI EL FICHERO NO EXISTE, ESTÁ INCOMPLETO O TIENE DATOS
+	 * ROTOS (POR EJEMPLO, SI EL HOST LO ESTABA ESCRIBIENDO JUSTO AHORA).
+	 * QUIEN LLAME DEBE COMPROBAR EL null Y REINTENTAR MÁS TARDE.
+	 */
 	public static Estado leerEstado() {
 		String[] lineas = leerLineas(RUTA_ESTADO, Estado.NUM_LINEAS);
 
@@ -123,17 +173,17 @@ public class GestorFicheros {
 	// BOLAS
 	// =================================================================
 
-	/* VACIA HISTORIAL DE BOLAS. SI NO SE LLAMA AL INICIAR SE MEZCLARIAN BOLAS CON PARTIDAS ANTERIORES. */
+	/* VACÍA EL HISTORIAL DE BOLAS. SI NO SE HACE AL EMPEZAR, SE MEZCLARÍAN CON LAS DE PARTIDAS ANTERIORES. */
 	public static void reiniciarBolas() {
 		escribirLineas(RUTA_BOLAS, new String[0], false);
 	}
 
-	/* AÑADE BOLA AL HISTORIAL (host/bolas.txt). */
+	/* AÑADE UNA BOLA AL HISTORIAL (host/bolas.txt). */
 	public static void guardarBola(int bola) {
 		escribirLineas(RUTA_BOLAS, new String[] { String.valueOf(bola) }, true);
 	}
 
-	/* LEE TODAS LAS BOLAS QUE HAN SALIDO */
+	/* LEE TODAS LAS BOLAS QUE HAN SALIDO, EN ORDEN DE SALIDA. */
 	public static int[] leerBolas() {
 		String[] lineas = leerLineas(RUTA_BOLAS, Bombo.TOTAL_BOLAS);
 		if (lineas == null) {
@@ -145,7 +195,7 @@ public class GestorFicheros {
 			try {
 				bolas[i] = Integer.parseInt(lineas[i].trim());
 			} catch (NumberFormatException e) {
-				bolas[i] = 0; // línea corrupta: se guarda 0, que Carton ignora
+				bolas[i] = 0; // LÍNEA ROTA: SE GUARDA 0, QUE EL CARTÓN IGNORA
 			}
 		}
 		return bolas;
@@ -155,15 +205,15 @@ public class GestorFicheros {
 	// CARTONES
 	// =================================================================
 
-	/* VERIFICA SI EL JUGADOR YA TIENE CARTON PROPIO */
+	/* COMPRUEBA SI EL JUGADOR YA TIENE UN CARTÓN GUARDADO. */
 	public static boolean existeCarton(String nombre) {
 		return new File(DIR_JUGADORES + nombre + ".txt").exists();
 	}
 
 	/*
-	 * GUARDA CARTON EN 2 SITIOS:
+	 * GUARDA EL CARTÓN EN 2 SITIOS:
 	 * 1. jugadores/<nombre>.txt     : PARA QUE EL JUGADOR LO RECUPERE SI VUELVE.
-	 * 2. host/cartones/<nombre>.txt : COPIA PARA QUE HOST REVISE QUE UNA LINEA/BINGO ES REAL.
+	 * 2. host/cartones/<nombre>.txt : COPIA PARA QUE EL HOST COMPRUEBE QUE UNA LÍNEA/BINGO ES REAL.
 	 */
 	public static void guardarCarton(String nombre, Carton carton) {
 		String[] lineas = carton.aLineas();
@@ -171,9 +221,24 @@ public class GestorFicheros {
 		escribirLineas(DIR_CARTONES_HOST + nombre + ".txt", lineas, false);
 	}
 
-	/* CARGA CARTÓN GUARDADO DE JUGADOR */
+	/* CARGA EL CARTÓN GUARDADO DE UN JUGADOR (null SI NO EXISTE O ESTÁ ROTO). */
 	public static Carton cargarCarton(String nombre) {
 		String[] lineas = leerLineas(DIR_JUGADORES + nombre + ".txt", Carton.FILAS);
 		return Carton.deLineas(lineas);
+	}
+
+	// =================================================================
+	// RESPUESTAS S/N
+	// =================================================================
+
+	/*
+	 * ANOTA LA RESPUESTA DE UN JUGADOR A UNA BOLA EN host/respuestas/<nombre>.txt.
+	 * SE AÑADE UNA LÍNEA POR BOLA CON FORMATO "bola;S" O "bola;N". EJEMPLO: "42;S".
+	 * CON ESTE FICHERO EL HOST PODRÁ REPETIR TODAS LAS RESPUESTAS SOBRE LA COPIA
+	 * DEL CARTÓN Y COMPROBAR QUÉ HA PASADO DE VERDAD (SIN CREER SOLO AL JUGADOR).
+	 */
+	public static void guardarRespuesta(String nombre, int bola, boolean dijoSi) {
+		String letra = dijoSi ? "S" : "N";
+		escribirLineas(DIR_RESPUESTAS + nombre + ".txt", new String[] { bola + ";" + letra }, true);
 	}
 }

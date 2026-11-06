@@ -1,4 +1,4 @@
-fase=FINALIZADA
-version=91
-ultimaBola=74
+fase=JUGANDO
+version=3
+ultimaBola=14
 idPartida=1

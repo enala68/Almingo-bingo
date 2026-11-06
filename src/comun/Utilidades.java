@@ -2,13 +2,13 @@ package comun;
 
 /*
  * UTILIDADES COMUNES
- * FUNCIONES MULTICLASES.
+ * FUNCIONES QUE USAN VARIAS CLASES.
  */
 public class Utilidades {
 
 	/*
-	 * DETIENE EL PROGRAMA
-	 * Thread.sleep CAPTURA InterruptedException (SI OTRA FUNCION INTERRUMPE LA ESPERA).
+	 * DETIENE EL PROGRAMA UNOS MILISEGUNDOS (1000 = 1 SEGUNDO).
+	 * Thread.sleep OBLIGA A CAPTURAR InterruptedException (SI ALGO INTERRUMPE LA ESPERA).
 	 */
 	public static void pausar(int milisegundos) {
 		try {
