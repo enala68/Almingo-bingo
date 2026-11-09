@@ -1,4 +1,4 @@
 fase=JUGANDO
-version=3
-ultimaBola=14
+version=4
+ultimaBola=2
 idPartida=1

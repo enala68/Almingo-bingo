@@ -1,6 +1,6 @@
 package jugador;
 
-import java.util.Scanner;
+import comun.Bombo;
 import comun.Carton;
 import comun.Estado;
 import comun.GestorFicheros;
@@ -23,6 +23,11 @@ import comun.Utilidades;
  *        - SE AVISA DE LÍNEA O BINGO;
  *        - SE TERMINA SI LA PARTIDA SE CANCELA O FINALIZA.
  *
+ * PANTALLA: POR CADA BOLA SE MUESTRAN SOLO DOS PANTALLAS LIMPIAS:
+ *   - PANTALLA DE PREGUNTA:  CABECERA + BOLAS ANTERIORES + BOLA NUEVA + CARTÓN + PREGUNTA.
+ *   - PANTALLA DE RESULTADO: CABECERA + QUÉ HA PASADO + CARTÓN ACTUALIZADO.
+ *   ASÍ SIEMPRE HAY UN ÚNICO CARTÓN EN PANTALLA Y NO SE VA APILANDO TEXTO.
+ *
  * REPARTO DEL TRABAJO:
  *   - Carton:          LA LÓGICA DEL CARTÓN (responder S/N, DETECTAR LÍNEA Y BINGO).
  *   - GestorFicheros:  LEER Y ESCRIBIR FICHEROS.
@@ -31,18 +36,23 @@ import comun.Utilidades;
  */
 public class JugadorMain {
 
+	/* LONGITUD DE LAS LÍNEAS DECORATIVAS DE LA CABECERA. */
+	private static final String LINEA = "==================================================";
+
 	/*
 	 * UN ÚNICO Scanner PARA TODO EL PROGRAMA (NOMBRE Y RESPUESTAS S/N).
 	 * NO SE CIERRA A PROPÓSITO: CERRARLO CERRARÍA TAMBIÉN EL TECLADO (System.in)
 	 * Y YA NO SE PODRÍA LEER NADA MÁS. SE CIERRA SOLO CUANDO TERMINA EL PROGRAMA.
 	 */
-	private static final Scanner teclado = new Scanner(System.in);
+	private static final LectorTeclado teclado = new LectorTeclado();
 
 	public static void main(String[] args) {
 		System.out.println("=== BIENVENIDO AL BINGO DE ALMINGO ===");
 
 		// SI EL JUGADOR ARRANCA ANTES QUE EL HOST, SE CREAN LAS CARPETAS QUE FALTEN
 		GestorFicheros.crearDirectorios();
+		// ARRANCAR EL HILO QUE ESCUCHA EL TECLADO (SOLO SE HACE UNA VEZ)
+		teclado.start();
 
 		// 1. NOMBRE DE USUARIO
 		String nombreUsuario = pedirNombreUsuario();
@@ -75,7 +85,7 @@ public class JugadorMain {
 
 		do {
 			System.out.print("Introduce tu nombre de usuario (letras, números o _): ");
-			nombre = teclado.nextLine().trim();
+			nombre = teclado.leerLinea();
 
 			if (!esNombreValido(nombre)) {
 				System.out.println("Nombre no válido. Inténtalo de nuevo.");
@@ -182,6 +192,44 @@ public class JugadorMain {
 		System.out.println("\n[ESPERANDO] Conectado al Host. Esperando extracción de bolas...");
 	}
 
+	// ========== PANTALLA ==========
+
+	/*
+	 * DIBUJA LA CABECERA QUE SE REPITE EN TODAS LAS PANTALLAS DE LA PARTIDA:
+	 * NOMBRE, NÚMERO DE BOLA, PERDONES GASTADOS Y MULTAS ACUMULADAS.
+	 */
+	private static void dibujarCabecera(String nombreUsuario, Carton carton, int numeroBola) {
+		int multas = carton.getFalsasAlarmas() * Reglas.MULTA_FALSA_ALARMA_CTS;
+
+		System.out.println(LINEA);
+		System.out.println(" BINGO ALMINGO | Jugador: " + nombreUsuario);
+		System.out.println(" Bola " + numeroBola + " de " + Bombo.TOTAL_BOLAS
+				+ " | Perdones: " + carton.getPerdonesUsados() + "/" + Reglas.OLVIDOS_PERDONADOS
+				+ " | Multas: " + Reglas.formatearEuros(multas));
+		System.out.println(LINEA);
+	}
+
+	/*
+	 * DEVUELVE EN TEXTO LAS (COMO MUCHO) 5 BOLAS ANTERIORES A LA POSICIÓN DADA.
+	 * EJEMPLO: SI HAN SALIDO 58, 84 Y 14 Y ESTAMOS EN LA 14, DEVUELVE "58 84".
+	 */
+	private static String bolasAnteriores(int[] bolas, int indiceActual) {
+		int desde = indiceActual - 5;
+		if (desde < 0) {
+			desde = 0;
+		}
+
+		String texto = "";
+		for (int i = desde; i < indiceActual; i++) {
+			texto = texto + bolas[i] + " ";
+		}
+
+		if (texto.equals("")) {
+			return "(ninguna todavía)";
+		}
+		return texto.trim();
+	}
+
 	// ========== BUCLE PRINCIPAL DEL JUEGO ==========
 
 	/*
@@ -221,6 +269,7 @@ public class JugadorMain {
 				// ---- PARTIDA EN MARCHA: TRATAR LAS BOLAS NUEVAS ----
 				} else if (fase.equals(Estado.FASE_JUGANDO)) {
 					int[] bolas = GestorFicheros.leerBolas();
+					int bolasAntes = bolasProcesadas; // PARA SABER SI HUBO BOLAS NUEVAS
 
 					while (juegoActivo && bolasProcesadas < bolas.length) {
 						int bola = bolas[bolasProcesadas];
@@ -229,13 +278,11 @@ public class JugadorMain {
 						if (pendientes > 1) {
 							// BOLA ATRASADA: SALIÓ MIENTRAS EL JUGADOR ESTABA OCUPADO Y YA SE HA
 							// PASADO SU TIEMPO. NO SE PREGUNTA: CUENTA COMO N.
-							System.out.println("\n--------------------------------------------------");
-							System.out.println("📢 [BOLA " + (bolasProcesadas + 1) + "] Salió el " + bola
-									+ " y no diste respuesta a tiempo: cuenta como N.");
-							aplicarRespuesta(nombreUsuario, carton, bola, false);
+							aplicarRespuesta(nombreUsuario, carton, bola, bolasProcesadas + 1, false,
+									"⏰ El " + bola + " salió y no diste respuesta a tiempo: cuenta como N.");
 						} else {
 							// ES LA ÚLTIMA BOLA: SE PREGUNTA AL JUGADOR
-							preguntarBola(nombreUsuario, carton, bola, bolasProcesadas + 1);
+							preguntarBola(nombreUsuario, carton, bolas, bolasProcesadas);
 						}
 						bolasProcesadas++;
 
@@ -253,6 +300,11 @@ public class JugadorMain {
 							juegoActivo = false;
 						}
 					}
+
+					// SI SE HA TRATADO ALGUNA BOLA, AVISAR DE QUE AHORA SE ESPERA LA SIGUIENTE
+					if (juegoActivo && bolasProcesadas > bolasAntes) {
+						System.out.println("\n⏳ Esperando la siguiente bola...");
+					}
 				}
 			}
 
@@ -265,83 +317,99 @@ public class JugadorMain {
 	}
 
 	/*
-	 * PREGUNTA AL JUGADOR SI LA BOLA ESTÁ EN SU CARTÓN Y APLICA LA RESPUESTA.
+	 * PANTALLA DE PREGUNTA: PREGUNTA AL JUGADOR SI LA BOLA ESTÁ EN SU CARTÓN Y APLICA LA RESPUESTA.
 	 *
 	 * PASOS:
-	 * 1. ANUNCIAR LA BOLA, MOSTRAR EL CARTÓN (PARA QUE PUEDA COMPROBARLA) Y HACER LA PREGUNTA.
-	 * 2. LEER LA RESPUESTA Y MEDIR CUÁNTO HA TARDADO CON EL RELOJ DEL SISTEMA.
-	 *    SI HA TARDADO MÁS DEL LÍMITE, O NO ESCRIBE S/N, CUENTA COMO N.
-	 * 3. APLICAR LA RESPUESTA (aplicarRespuesta).
+	 * 1. LIMPIAR PANTALLA Y MOSTRAR: CABECERA, BOLAS ANTERIORES, BOLA NUEVA Y CARTÓN.
+	 * 2. HACER LA PREGUNTA Y LEER LA RESPUESTA MIDIENDO CUÁNTO TARDA CON EL RELOJ.
+	 *    SI TARDA MÁS DEL LÍMITE, O NO ESCRIBE S/N, CUENTA COMO N.
+	 * 3. APLICAR LA RESPUESTA (aplicarRespuesta), QUE DIBUJA LA PANTALLA DE RESULTADO.
 	 */
-	private static void preguntarBola(String nombreUsuario, Carton carton, int bola, int numeroBola) {
-		// 1. ANUNCIAR Y PREGUNTAR
-		System.out.println("\n--------------------------------------------------");
-		System.out.println("📢 [BOLA " + numeroBola + "] ¡Ha salido el " + bola + "!");
-		carton.mostrarCarton();
-		System.out.print("¿Está el " + bola + " en tu cartón? (S/N + ENTER, máximo "
-				+ (Reglas.TIEMPO_RESPUESTA_MS / 1000) + " s): ");
+	private static void preguntarBola(String nombreUsuario, Carton carton, int[] bolas, int indice) {
+		int bola = bolas[indice];
+		int numeroBola = indice + 1;
 
-		// 2. LEER LA RESPUESTA CONTANDO EL TIEMPO.
+		// 1. PANTALLA LIMPIA CON LA INFORMACIÓN DE ESTA BOLA
+		Utilidades.limpiarPantalla();
+		dibujarCabecera(nombreUsuario, carton, numeroBola);
+		System.out.println("Bolas anteriores: " + bolasAnteriores(bolas, indice));
+		System.out.println("\n📢 ¡HA SALIDO EL " + bola + "!\n");
+		carton.mostrarCarton();
+
+		// 2. PREGUNTAR Y LEER LA RESPUESTA CONTANDO EL TIEMPO.
 		// System.currentTimeMillis() DA LA HORA ACTUAL EN MILISEGUNDOS: SE ANOTA ANTES
 		// Y DESPUÉS DE LEER Y LA DIFERENCIA ES LO QUE HA TARDADO EL JUGADOR.
-		long inicio = System.currentTimeMillis();
-		String respuesta = teclado.nextLine().trim();
-		long tardado = System.currentTimeMillis() - inicio;
+		// ANTES SE BORRA LO QUE EL JUGADOR HUBIERA ESCRITO TARDE A LA BOLA ANTERIOR
+		teclado.descartarPendiente();
+		System.out.print("\n¿Está el " + bola + " en tu cartón? (S/N + ENTER, máximo "
+				+ (Reglas.TIEMPO_RESPUESTA_MS / 1000) + " s): ");
+
+		String respuesta = teclado.esperarLinea(Reglas.TIEMPO_RESPUESTA_MS);
 
 		boolean dijoSi = false;
-		if (tardado > Reglas.TIEMPO_RESPUESTA_MS) {
-			System.out.println("⏰ Has tardado " + (tardado / 1000) + " s (el máximo son "
-					+ (Reglas.TIEMPO_RESPUESTA_MS / 1000) + " s): cuenta como N.");
+		String aviso = ""; // MENSAJE EXTRA SI HUBO PROBLEMA CON LA RESPUESTA
+		if (respuesta == null) {
+			aviso = "⏰ Tiempo agotado (" + (Reglas.TIEMPO_RESPUESTA_MS / 1000)
+					+ " s): no contestaste, cuenta como N.";
 		} else if (respuesta.equalsIgnoreCase("S")) {
 			dijoSi = true;
 		} else if (!respuesta.equalsIgnoreCase("N")) {
-			System.out.println("Respuesta no válida (solo S o N): cuenta como N.");
+			aviso = "Respuesta no válida (solo S o N): cuenta como N.";
 		}
 
 		// 3. APLICAR LA RESPUESTA
-		aplicarRespuesta(nombreUsuario, carton, bola, dijoSi);
+		aplicarRespuesta(nombreUsuario, carton, bola, numeroBola, dijoSi, aviso);
 	}
 
 	/*
-	 * APLICA LA RESPUESTA DEL JUGADOR A UNA BOLA (LA HAYA DADO ÉL O SE LE HAYA
-	 * ASIGNADO N POR FALTA DE TIEMPO):
-	 * 1. LA ANOTA EN host/respuestas/ (PARA QUE EL HOST PUEDA COMPROBARLA).
-	 * 2. LA APLICA AL CARTÓN Y CUENTA AL JUGADOR LO QUE HA PASADO.
-	 * 3. VUELVE A MOSTRAR EL CARTÓN SOLO SI HA CAMBIADO.
+	 * PANTALLA DE RESULTADO: APLICA LA RESPUESTA DEL JUGADOR A UNA BOLA (LA HAYA
+	 * DADO ÉL O SE LE HAYA ASIGNADO N POR FALTA DE TIEMPO) Y MUESTRA QUÉ HA PASADO.
+	 *
+	 * PASOS:
+	 * 1. ANOTAR LA RESPUESTA EN host/respuestas/ (PARA QUE EL HOST PUEDA COMPROBARLA).
+	 * 2. APLICARLA AL CARTÓN Y PREPARAR EL MENSAJE DE LO QUE HA PASADO.
+	 * 3. LIMPIAR PANTALLA Y MOSTRAR: CABECERA, AVISO (SI LO HAY), RESULTADO Y CARTÓN ACTUALIZADO.
+	 *
+	 * @param aviso TEXTO EXTRA QUE SE MUESTRA ANTES DEL RESULTADO ("" SI NO HAY)
 	 */
-	private static void aplicarRespuesta(String nombreUsuario, Carton carton, int bola, boolean dijoSi) {
+	private static void aplicarRespuesta(String nombreUsuario, Carton carton, int bola, int numeroBola,
+			boolean dijoSi, String aviso) {
 		// 1. ANOTAR LA RESPUESTA PARA QUE EL HOST PUEDA COMPROBARLA DESPUÉS
 		GestorFicheros.guardarRespuesta(nombreUsuario, bola, dijoSi);
 
-		// 2. APLICAR LA RESPUESTA AL CARTÓN Y CONTAR EL RESULTADO
+		// 2. APLICAR LA RESPUESTA AL CARTÓN Y PREPARAR EL MENSAJE
 		int resultado = carton.responder(bola, dijoSi);
+		String mensaje = "";
 
 		if (resultado == Carton.RESULTADO_TACHADO) {
-			System.out.println("✔ ¡Correcto! Número " + bola + " tachado en tu cartón.");
+			mensaje = "✔ ¡Correcto! Número " + bola + " tachado en tu cartón.";
 
 		} else if (resultado == Carton.RESULTADO_CORRECTO_NO) {
-			System.out.println("👍 Correcto: ese número no está en tu cartón.");
+			mensaje = "👍 Correcto: el " + bola + " no está en tu cartón.";
 
 		} else if (resultado == Carton.RESULTADO_OLVIDO_PERDONADO) {
-			System.out.println("⚠️ ¡Olvido! El " + bola + " SÍ estaba en tu cartón. Esta vez te lo perdonamos"
-					+ " (se tacha solo), pero ya has gastado " + carton.getPerdonesUsados() + " de "
-					+ Reglas.OLVIDOS_PERDONADOS + " perdón(es).");
+			mensaje = "⚠️ ¡Olvido! El " + bola + " SÍ estaba en tu cartón. Esta vez te lo perdonamos\n"
+					+ "   (se tacha solo), pero ya has gastado " + carton.getPerdonesUsados() + " de "
+					+ Reglas.OLVIDOS_PERDONADOS + " perdón(es).";
 
 		} else if (resultado == Carton.RESULTADO_OLVIDO) {
-			System.out.println("❌ ¡Olvido! El " + bola + " estaba en tu cartón y no lo marcaste.");
-			System.out.println("   Esa fila ya no podrá dar línea y el Bingo ya no es posible para ti.");
+			mensaje = "❌ ¡Olvido! El " + bola + " estaba en tu cartón y no lo marcaste.\n"
+					+ "   Esa fila ya no podrá dar línea y el Bingo ya no es posible para ti.";
 
 		} else if (resultado == Carton.RESULTADO_FALSA_ALARMA) {
-			System.out.println("💸 Falsa alarma: el " + bola + " NO está en tu cartón. Multa de "
-					+ Reglas.formatearEuros(Reglas.MULTA_FALSA_ALARMA_CTS) + " (va al bote).");
+			mensaje = "💸 Falsa alarma: el " + bola + " NO está en tu cartón. Multa de "
+					+ Reglas.formatearEuros(Reglas.MULTA_FALSA_ALARMA_CTS) + " (va al bote).";
 		}
 
-		// 3. MOSTRAR EL CARTÓN SOLO SI HA CAMBIADO (TACHADO U OLVIDO)
-		if (resultado == Carton.RESULTADO_TACHADO
-				|| resultado == Carton.RESULTADO_OLVIDO_PERDONADO
-				|| resultado == Carton.RESULTADO_OLVIDO) {
-			carton.mostrarCarton();
+		// 3. PANTALLA DE RESULTADO. LA CABECERA SE DIBUJA DESPUÉS DE APLICAR LA
+		// RESPUESTA PARA QUE YA MUESTRE LOS PERDONES Y MULTAS ACTUALIZADOS.
+		Utilidades.limpiarPantalla();
+		dibujarCabecera(nombreUsuario, carton, numeroBola);
+		if (!aviso.equals("")) {
+			System.out.println(aviso);
 		}
+		System.out.println(mensaje + "\n");
+		carton.mostrarCarton();
 	}
 
 	/* AL TERMINAR LA PARTIDA, MUESTRA EL CARTÓN FINAL Y UN RESUMEN DEL JUGADOR. */
