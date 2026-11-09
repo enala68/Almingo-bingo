@@ -5,7 +5,7 @@ import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.util.Scanner;
 
-/**
+/*
  * GESTOR DE FICHEROS
  * ---------------------------------------------------------------------
  * ÚNICA CLASE QUE LEE Y ESCRIBE FICHEROS.
@@ -27,20 +27,20 @@ import java.util.Scanner;
 public class GestorFicheros {
 
 	// ---------------------------------------------------------------
-	// RUTA BASE (carpeta compartida). Por defecto carpeta actual.
+	// RUTA BASE (CARPETA COMPARTIDA). POR DEFECTO LA CARPETA ACTUAL.
 	// ---------------------------------------------------------------
 	private static String rutaBase = "";
 
-	/**
-	 * Establece la carpeta raíz donde se crearán host/, jugadores/, etc.
-	 * Debe llamarse ANTES de crearDirectorios() o cualquier otra operación.
-	 * Acepta rutas locales o UNC (\\\\IP\\NombreCompartido).
+	/*
+	 * ESTABLECE LA CARPETA RAÍZ DONDE SE CREARÁN host/, jugadores/, etc.
+	 * DEBE LLAMARSE ANTES DE LLAMAR A crearDirectorios() O CUALQUIERO OTRA.
+	 * ACEPTA RUTAS LOCALES o UNC (\\\\IP\\NombreCompartido).
 	 */
 	public static void setRutaBase(String ruta) {
 		if (ruta == null || ruta.trim().isEmpty()) {
 			rutaBase = "";
 		} else {
-			// Quitar barra final si la trae, para construir las rutas de forma limpia
+			// QUITA BARRA FINAL (SI LA TRAE) PARA CONSTRUIR LAS RUTAS DE FORMA LIMPIA.
 			ruta = ruta.trim().replace('/', '\\');
 			while (ruta.endsWith("\\") && ruta.length() > 1) {
 				ruta = ruta.substring(0, ruta.length() - 1);
@@ -49,22 +49,22 @@ public class GestorFicheros {
 		}
 	}
 
-	/** Devuelve la ruta base actual (vacía = carpeta de trabajo). */
+	/* DEVUELVE LA RUTA BASE ACTUAL (VACIO = CARPETA DE TRABAJO) */
 	public static String getRutaBase() {
 		return rutaBase;
 	}
 
-	/** Construye una ruta completa a partir de la base + ruta relativa. */
+	/* CONSTRUYE RUTA COMPLETA (BASE + RUTA RELATIVA). */
 	private static String ruta(String relativa) {
 		if (rutaBase.isEmpty()) {
 			return relativa;
 		}
-		// En Windows/UNC la barra correcta es \
+		// EN WINDOWS/UNC la barra correcta es \
 		return rutaBase + "\\" + relativa.replace('/', '\\');
 	}
 
 	// ---------------------------------------------------------------
-	// RUTAS RELATIVAS (se combinan con rutaBase)
+	// RUTAS RELATIVAS (SE COMBINAN CON rutaBase)
 	// ---------------------------------------------------------------
 	public static final String DIR_HOST = "host/";
 	public static final String DIR_CARTONES_HOST = "host/cartones/";
@@ -145,7 +145,7 @@ public class GestorFicheros {
 		String[] temporal = new String[maxLineas];
 		int total = 0;
 
-		// try-with-resources: EL Scanner SE CIERRA SOLO AL TERMINAR EL BLOQUE
+		// EL Scanner SE CIERRA SOLO AL TERMINAR EL BLOQUE
 		try (Scanner lector = new Scanner(fichero)) {
 			while (lector.hasNextLine() && total < maxLineas) {
 				temporal[total] = lector.nextLine();

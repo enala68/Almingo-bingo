@@ -13,6 +13,7 @@ import comun.Utilidades;
  * LOS TIEMPOS SE CONFIGURAN EN LA CLASE Reglas.
  *
  * FLUJO DE LA PARTIDA:
+ *   0. RUTA CARPETA COMPARTIDA
  *   1. PREPARAR CARPETAS Y LIMPIAR RESTOS DE LA PARTIDA ANTERIOR.
  *   2. CREAR BOMBO Y ESTADO INICIAL (FASE ESPERANDO).
  *   3. ESPERAR A QUE LOS JUGADORES SE CONECTEN (SOLO PUEDEN ENTRAR EN ESTA FASE).
@@ -27,8 +28,8 @@ public class HostMain {
 	public static void main(String[] args) {
 		System.out.println("=== INICIANDO SERVIDOR (HOST) ===");
 
-		// 0. RUTA BASE (carpeta compartida). Se pasa como primer argumento.
-		//    Ejemplo: java host.HostMain "\\192.168.0.112\BingoCompartido"
+		// 0. RUTA BASE (CARPETA COMPARTIDA). SE PASA COMO PRIMER ARGUMENTO.
+		//    EJ: java host.HostMain "\\192.168.0.112\BingoCompartido"
 		if (args.length >= 1 && args[0] != null && !args[0].trim().isEmpty()) {
 			GestorFicheros.setRutaBase(args[0]);
 			System.out.println("Carpeta compartida: " + GestorFicheros.getRutaBase());
