@@ -11,18 +11,60 @@ import java.util.Scanner;
  * ÚNICA CLASE QUE LEE Y ESCRIBE FICHEROS.
  * TANTO EL HOST COMO EL JUGADOR LA UTILIZAN.
  *
- * ESTRUCTURA DE FICHEROS:
+ * ESTRUCTURA DE FICHEROS (dentro de la carpeta base):
  *   host/estado.txt              -> ESTADO ACTUAL DE LA PARTIDA
  *   host/bolas.txt               -> HISTORIAL DE BOLAS
  *   host/cartones/<nombre>.txt   -> COPIA DE CADA CARTÓN PARA VALIDAR
  *   host/respuestas/<nombre>.txt -> RESPUESTAS S/N DE CADA JUGADOR (UNA LÍNEA POR BOLA: "42;S")
  *   jugadores/<nombre>.txt       -> CARTÓN DE CADA JUGADOR
  *   reclamaciones/               -> FICHEROS DEL FLUJO DE LÍNEA/BINGO (PENDIENTE)
+ *
+ * RUTA BASE:
+ *   Por defecto trabaja en la carpeta actual ("").
+ *   Se puede cambiar con setRutaBase(...) para usar una carpeta compartida en red
+ *   (ejemplo: "\\\\192.168.0.112\\BingoCompartido").
  */
 public class GestorFicheros {
 
 	// ---------------------------------------------------------------
-	// RUTAS
+	// RUTA BASE (carpeta compartida). Por defecto carpeta actual.
+	// ---------------------------------------------------------------
+	private static String rutaBase = "";
+
+	/**
+	 * Establece la carpeta raíz donde se crearán host/, jugadores/, etc.
+	 * Debe llamarse ANTES de crearDirectorios() o cualquier otra operación.
+	 * Acepta rutas locales o UNC (\\\\IP\\NombreCompartido).
+	 */
+	public static void setRutaBase(String ruta) {
+		if (ruta == null || ruta.trim().isEmpty()) {
+			rutaBase = "";
+		} else {
+			// Quitar barra final si la trae, para construir las rutas de forma limpia
+			ruta = ruta.trim().replace('/', '\\');
+			while (ruta.endsWith("\\") && ruta.length() > 1) {
+				ruta = ruta.substring(0, ruta.length() - 1);
+			}
+			rutaBase = ruta;
+		}
+	}
+
+	/** Devuelve la ruta base actual (vacía = carpeta de trabajo). */
+	public static String getRutaBase() {
+		return rutaBase;
+	}
+
+	/** Construye una ruta completa a partir de la base + ruta relativa. */
+	private static String ruta(String relativa) {
+		if (rutaBase.isEmpty()) {
+			return relativa;
+		}
+		// En Windows/UNC la barra correcta es \
+		return rutaBase + "\\" + relativa.replace('/', '\\');
+	}
+
+	// ---------------------------------------------------------------
+	// RUTAS RELATIVAS (se combinan con rutaBase)
 	// ---------------------------------------------------------------
 	public static final String DIR_HOST = "host/";
 	public static final String DIR_CARTONES_HOST = "host/cartones/";
@@ -43,11 +85,11 @@ public class GestorFicheros {
 	 * mkdirs() CREA TAMBIÉN LAS CARPETAS INTERMEDIAS Y NO FALLA SI YA EXISTEN.
 	 */
 	public static void crearDirectorios() {
-		new File(DIR_HOST).mkdirs();
-		new File(DIR_CARTONES_HOST).mkdirs();
-		new File(DIR_RESPUESTAS).mkdirs();
-		new File(DIR_JUGADORES).mkdirs();
-		new File(DIR_RECLAMACIONES).mkdirs();
+		new File(ruta(DIR_HOST)).mkdirs();
+		new File(ruta(DIR_CARTONES_HOST)).mkdirs();
+		new File(ruta(DIR_RESPUESTAS)).mkdirs();
+		new File(ruta(DIR_JUGADORES)).mkdirs();
+		new File(ruta(DIR_RECLAMACIONES)).mkdirs();
 	}
 
 	/*
@@ -59,7 +101,7 @@ public class GestorFicheros {
 	 * LO LLAMA EL HOST AL ARRANCAR.
 	 */
 	public static void limpiarPartidaAnterior() {
-		new File(RUTA_ESTADO).delete();
+		new File(ruta(RUTA_ESTADO)).delete();
 		reiniciarBolas();
 		borrarFicherosDeCarpeta(DIR_JUGADORES);
 		borrarFicherosDeCarpeta(DIR_CARTONES_HOST);
@@ -70,8 +112,8 @@ public class GestorFicheros {
 	 * BORRA TODOS LOS FICHEROS DE UNA CARPETA SIN BORRAR LA CARPETA.
 	 * listFiles() DEVUELVE UN ARRAY CON LO QUE HAY DENTRO (O null SI LA CARPETA NO EXISTE).
 	 */
-	private static void borrarFicherosDeCarpeta(String ruta) {
-		File[] ficheros = new File(ruta).listFiles();
+	private static void borrarFicherosDeCarpeta(String rutaRelativa) {
+		File[] ficheros = new File(ruta(rutaRelativa)).listFiles();
 		if (ficheros == null) {
 			return;
 		}
@@ -94,8 +136,8 @@ public class GestorFicheros {
 	 * 2. SE COPIA A UN ARRAY DE TAMAÑO EXACTO.
 	 * DEVUELVE null SI EL FICHERO NO EXISTE O NO SE PUDO LEER.
 	 */
-	private static String[] leerLineas(String ruta, int maxLineas) {
-		File fichero = new File(ruta);
+	private static String[] leerLineas(String rutaRelativa, int maxLineas) {
+		File fichero = new File(ruta(rutaRelativa));
 		if (!fichero.exists()) {
 			return null;
 		}
@@ -127,15 +169,15 @@ public class GestorFicheros {
 	 * anadir = false -> BORRA LO ANTERIOR Y ESCRIBE DE CERO.
 	 * DEVUELVE TRUE SI SE ESCRIBIÓ BIEN.
 	 */
-	private static boolean escribirLineas(String ruta, String[] lineas, boolean anadir) {
+	private static boolean escribirLineas(String rutaRelativa, String[] lineas, boolean anadir) {
 		// try-with-resources: EL PrintWriter SE CIERRA (Y GUARDA) SOLO AL TERMINAR
-		try (PrintWriter escritor = new PrintWriter(new FileWriter(ruta, anadir))) {
+		try (PrintWriter escritor = new PrintWriter(new FileWriter(ruta(rutaRelativa), anadir))) {
 			for (String linea : lineas) {
 				escritor.println(linea);
 			}
 			return true;
 		} catch (Exception e) {
-			System.err.println("Error al escribir '" + ruta + "': " + e.getMessage());
+			System.err.println("Error al escribir '" + ruta(rutaRelativa) + "': " + e.getMessage());
 			return false;
 		}
 	}
@@ -207,7 +249,7 @@ public class GestorFicheros {
 
 	/* COMPRUEBA SI EL JUGADOR YA TIENE UN CARTÓN GUARDADO. */
 	public static boolean existeCarton(String nombre) {
-		return new File(DIR_JUGADORES + nombre + ".txt").exists();
+		return new File(ruta(DIR_JUGADORES + nombre + ".txt")).exists();
 	}
 
 	/*

@@ -27,6 +27,15 @@ public class HostMain {
 	public static void main(String[] args) {
 		System.out.println("=== INICIANDO SERVIDOR (HOST) ===");
 
+		// 0. RUTA BASE (carpeta compartida). Se pasa como primer argumento.
+		//    Ejemplo: java host.HostMain "\\192.168.0.112\BingoCompartido"
+		if (args.length >= 1 && args[0] != null && !args[0].trim().isEmpty()) {
+			GestorFicheros.setRutaBase(args[0]);
+			System.out.println("Carpeta compartida: " + GestorFicheros.getRutaBase());
+		} else {
+			System.out.println("No se indicó carpeta compartida. Usando carpeta local.");
+		}
+
 		// 1. PREPARAR CARPETAS Y LIMPIAR LOS RESTOS DE LA PARTIDA ANTERIOR
 		GestorFicheros.crearDirectorios();
 		GestorFicheros.limpiarPartidaAnterior();

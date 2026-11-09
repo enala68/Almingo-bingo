@@ -49,6 +49,15 @@ public class JugadorMain {
 	public static void main(String[] args) {
 		System.out.println("=== BIENVENIDO AL BINGO DE ALMINGO ===");
 
+		// 0. RUTA BASE (carpeta compartida). Se pasa como primer argumento.
+		//    Ejemplo: java jugador.JugadorMain "\\192.168.0.112\BingoCompartido"
+		if (args.length >= 1 && args[0] != null && !args[0].trim().isEmpty()) {
+			GestorFicheros.setRutaBase(args[0]);
+			System.out.println("Conectado a: " + GestorFicheros.getRutaBase());
+		} else {
+			System.out.println("No se indicó carpeta compartida. Usando carpeta local.");
+		}
+
 		// SI EL JUGADOR ARRANCA ANTES QUE EL HOST, SE CREAN LAS CARPETAS QUE FALTEN
 		GestorFicheros.crearDirectorios();
 		// ARRANCAR EL HILO QUE ESCUCHA EL TECLADO (SOLO SE HACE UNA VEZ)
