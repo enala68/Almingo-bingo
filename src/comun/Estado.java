@@ -1,60 +1,37 @@
 package comun;
 
-/**
- * ESTADO GLOBAL DE LA PARTIDA
- * ---------------------------------------------------------------------
- * HOST ESCRIBE ESTADO EN host/estado.txt CADA VEZ QUE ALGO CAMBIA Y JUGADORES LO LEEN.
- *
- * FORMATO DE GUARDADO (clave=valor):
- *     fase=JUGANDO
- *     version=7
- *     ultimaBola=42
- *     idPartida=1
- *
- * "version" SUBE +1 CADA VEZ QUE ESTADO CAMBIA PARA QUE JUGADOR SEPA SI HAY ALGO NUEVO.
- */
+/* ESTADO GLOBAL DE LA PARTIDA */
 public class Estado {
 
-	// ---------------------------------------------------------------
-	// CONSTANTES DE FASE:
-	// ---------------------------------------------------------------
-	
-	/* HOST HA CREADO PARTIDA PERO AÚN NO EMPIEZA A SACAR BOLAS. */
+	/* FASE ESPERANDO */
 	public static final String FASE_ESPERANDO = "ESPERANDO";
 
-	/* SE ESTÁN SACANDO BOLAS. */
+	/* FASE JUGANDO */
 	public static final String FASE_JUGANDO = "JUGANDO";
 
-	/* VALIDANDO UNA RECLAMACIÓN (LINEA O BINGO). */
+	/* FASE VALIDANDO */
 	public static final String FASE_VALIDANDO = "VALIDANDO";
 
-	/* PARTIDA TERMINÓ. */
+	/* FASE FINALIZADA */
 	public static final String FASE_FINALIZADA = "FINALIZADA";
 
-	/* HOST INTERRUMPE PARTIDA MANUALMENTE. */
+	/* FASE CANCELADA */
 	public static final String FASE_CANCELADA = "CANCELADA";
 
-	/* NUMERO DE LINEAS DE ESTADO EN FICHERO. */
+	/* NÚMERO DE LÍNEAS DE ESTADO */
 	public static final int NUM_LINEAS = 4;
 
-	// ---------------------------------------------------------------
-	// ATRIBUTOS
-	// ---------------------------------------------------------------
-	private String fase;      // MOMENTO EN QUE SE ENCUENTRA LA PARTIDA
-	private int version;      // CONTADOR DE CAMBIOS DE LA PARTIDA (+1)
-	private int ultimaBola;   // ÚLTIMA BOLA EXTRAIDA (1-90). 0 = NINGUNA TODAVÍA
-	private int idPartida;    // ID DE LA PARTIDA ACTUAL
+	private String fase;      
+	private int version;      
+	private int ultimaBola;   
+	private int idPartida;    
 
-	// ---------------------------------------------------------------
-	// CONSTRUCTORES
-	// ---------------------------------------------------------------
-
-	/* CREA ESTADO EN BLANCO: esperando, versión 0, sin bolas. */
+	/* CREAR ESTADO EN BLANCO */
 	public Estado() {
 		this(FASE_ESPERANDO, 0, 0, 0);
 	}
 
-	/* CREA ESTADO COMPLETO */
+	/* CREAR ESTADO COMPLETO */
 	public Estado(String fase, int version, int ultimaBola, int idPartida) {
 		this.fase = fase;
 		this.version = version;
@@ -62,31 +39,36 @@ public class Estado {
 		this.idPartida = idPartida;
 	}
 
-	// ---------------------------------------------------------------
-	// GETTERS Y SETTERS
-	// ---------------------------------------------------------------
+	/* OBTENER FASE */
 	public String getFase() { return fase; }
+
+	/* ESTABLECER FASE */
 	public void setFase(String fase) { this.fase = fase; }
 
+	/* OBTENER VERSIÓN */
 	public int getVersion() { return version; }
+
+	/* ESTABLECER VERSIÓN */
 	public void setVersion(int version) { this.version = version; }
 
+	/* OBTENER ÚLTIMA BOLA */
 	public int getUltimaBola() { return ultimaBola; }
+
+	/* ESTABLECER ÚLTIMA BOLA */
 	public void setUltimaBola(int ultimaBola) { this.ultimaBola = ultimaBola; }
 
+	/* OBTENER ID DE PARTIDA */
 	public int getIdPartida() { return idPartida; }
+
+	/* ESTABLECER ID DE PARTIDA */
 	public void setIdPartida(int idPartida) { this.idPartida = idPartida; }
 
-	/* INCREMENTA VERSION EN 1 */
+	/* INCREMENTAR VERSIÓN EN 1 */
 	public void incrementarVersion() {
 		this.version++;
 	}
 
-	// ---------------------------------------------------------------
-	// CONVERSIÓN A LINEAS PARA ESCRIBIR EN FICHERO
-	// ---------------------------------------------------------------
-
-	/* ESCRIBE ARRAY DE 4 LINEAS */
+	/* CONVERTIR ESTADO A LÍNEAS DE TEXTO */
 	public String[] aLineas() {
 		String[] lineas = new String[NUM_LINEAS];
 		lineas[0] = "fase=" + fase;
@@ -96,17 +78,15 @@ public class Estado {
 		return lineas;
 	}
 
-	/* LEE ARRAY DE 4 LINEAS */
+	/* RECONSTRUIR ESTADO DESDE LÍNEAS */
 	public static Estado deLineas(String[] lineas) {
 		Estado estado = new Estado();
 
 		for (int i = 0; i < lineas.length; i++) {
-			// SI UNA LINEA NO LLEGÓ A LEERSE PASA A LA SIGUIENTE
 			if (lineas[i] == null) {
 				continue;
 			}
 
-			// "version=7".split("=", 2) -> ["version", "7"]
 			String[] partes = lineas[i].split("=", 2);
 
 			if (partes.length == 2) {

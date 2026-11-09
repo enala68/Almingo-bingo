@@ -5,42 +5,17 @@ import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.util.Scanner;
 
-/*
- * GESTOR DE FICHEROS
- * ---------------------------------------------------------------------
- * ÚNICA CLASE QUE LEE Y ESCRIBE FICHEROS.
- * TANTO EL HOST COMO EL JUGADOR LA UTILIZAN.
- *
- * ESTRUCTURA DE FICHEROS (dentro de la carpeta base):
- *   host/estado.txt              -> ESTADO ACTUAL DE LA PARTIDA
- *   host/bolas.txt               -> HISTORIAL DE BOLAS
- *   host/cartones/<nombre>.txt   -> COPIA DE CADA CARTÓN PARA VALIDAR
- *   host/respuestas/<nombre>.txt -> RESPUESTAS S/N DE CADA JUGADOR (UNA LÍNEA POR BOLA: "42;S")
- *   jugadores/<nombre>.txt       -> CARTÓN DE CADA JUGADOR
- *   reclamaciones/               -> FICHEROS DEL FLUJO DE LÍNEA/BINGO (PENDIENTE)
- *
- * RUTA BASE:
- *   Por defecto trabaja en la carpeta actual ("").
- *   Se puede cambiar con setRutaBase(...) para usar una carpeta compartida en red
- *   (ejemplo: "\\\\192.168.0.112\\BingoCompartido").
- */
+/* GESTOR DE FICHEROS */
 public class GestorFicheros {
 
-	// ---------------------------------------------------------------
-	// RUTA BASE (CARPETA COMPARTIDA). POR DEFECTO LA CARPETA ACTUAL.
-	// ---------------------------------------------------------------
+	/* RUTA BASE DE DIRECTORIOS */
 	private static String rutaBase = "";
 
-	/*
-	 * ESTABLECE LA CARPETA RAÍZ DONDE SE CREARÁN host/, jugadores/, etc.
-	 * DEBE LLAMARSE ANTES DE LLAMAR A crearDirectorios() O CUALQUIERO OTRA.
-	 * ACEPTA RUTAS LOCALES o UNC (\\\\IP\\NombreCompartido).
-	 */
+	/* ESTABLECER RUTA BASE */
 	public static void setRutaBase(String ruta) {
 		if (ruta == null || ruta.trim().isEmpty()) {
 			rutaBase = "";
 		} else {
-			// QUITA BARRA FINAL (SI LA TRAE) PARA CONSTRUIR LAS RUTAS DE FORMA LIMPIA.
 			ruta = ruta.trim().replace('/', '\\');
 			while (ruta.endsWith("\\") && ruta.length() > 1) {
 				ruta = ruta.substring(0, ruta.length() - 1);
@@ -49,23 +24,20 @@ public class GestorFicheros {
 		}
 	}
 
-	/* DEVUELVE LA RUTA BASE ACTUAL (VACIO = CARPETA DE TRABAJO) */
+	/* OBTENER RUTA BASE */
 	public static String getRutaBase() {
 		return rutaBase;
 	}
 
-	/* CONSTRUYE RUTA COMPLETA (BASE + RUTA RELATIVA). */
+	/* CONSTRUIR RUTA COMPLETA */
 	private static String ruta(String relativa) {
 		if (rutaBase.isEmpty()) {
 			return relativa;
 		}
-		// EN WINDOWS/UNC la barra correcta es \
 		return rutaBase + "\\" + relativa.replace('/', '\\');
 	}
 
-	// ---------------------------------------------------------------
-	// RUTAS RELATIVAS (SE COMBINAN CON rutaBase)
-	// ---------------------------------------------------------------
+	/* RUTAS RELATIVAS */
 	public static final String DIR_HOST = "host/";
 	public static final String DIR_CARTONES_HOST = "host/cartones/";
 	public static final String DIR_RESPUESTAS = "host/respuestas/";
@@ -74,16 +46,9 @@ public class GestorFicheros {
 
 	public static final String RUTA_ESTADO = DIR_HOST + "estado.txt";
 	public static final String RUTA_BOLAS = DIR_HOST + "bolas.txt";
+	public static final String RUTA_BOTE = DIR_HOST + "bote.txt";
 
-	// =================================================================
-	// PREPARACIÓN
-	// =================================================================
-
-	/*
-	 * CREA TODAS LAS CARPETAS DEL PROYECTO SI NO EXISTEN TODAVÍA.
-	 * SE LLAMA AL ARRANCAR EL HOST Y EL JUGADOR.
-	 * mkdirs() CREA TAMBIÉN LAS CARPETAS INTERMEDIAS Y NO FALLA SI YA EXISTEN.
-	 */
+	/* CREAR DIRECTORIOS NECESARIOS */
 	public static void crearDirectorios() {
 		new File(ruta(DIR_HOST)).mkdirs();
 		new File(ruta(DIR_CARTONES_HOST)).mkdirs();
@@ -92,26 +57,18 @@ public class GestorFicheros {
 		new File(ruta(DIR_RECLAMACIONES)).mkdirs();
 	}
 
-	/*
-	 * BORRA LOS RESTOS DE LA PARTIDA ANTERIOR PARA EMPEZAR DE CERO:
-	 * 1. ELIMINA EL ESTADO VIEJO (host/estado.txt). ASÍ UN JUGADOR QUE ARRANQUE
-	 *    ANTES QUE EL HOST NO LEE UNA PARTIDA TERMINADA O A MEDIAS.
-	 * 2. VACÍA EL HISTORIAL DE BOLAS.
-	 * 3. BORRA CARTONES (jugadores/ Y host/cartones/) Y RESPUESTAS.
-	 * LO LLAMA EL HOST AL ARRANCAR.
-	 */
+	/* LIMPIAR FICHEROS DE PARTIDA ANTERIOR */
 	public static void limpiarPartidaAnterior() {
 		new File(ruta(RUTA_ESTADO)).delete();
+		new File(ruta(RUTA_BOTE)).delete();
 		reiniciarBolas();
 		borrarFicherosDeCarpeta(DIR_JUGADORES);
 		borrarFicherosDeCarpeta(DIR_CARTONES_HOST);
 		borrarFicherosDeCarpeta(DIR_RESPUESTAS);
+		borrarFicherosDeCarpeta(DIR_RECLAMACIONES);
 	}
 
-	/*
-	 * BORRA TODOS LOS FICHEROS DE UNA CARPETA SIN BORRAR LA CARPETA.
-	 * listFiles() DEVUELVE UN ARRAY CON LO QUE HAY DENTRO (O null SI LA CARPETA NO EXISTE).
-	 */
+	/* BORRAR FICHEROS DE UNA CARPETA */
 	private static void borrarFicherosDeCarpeta(String rutaRelativa) {
 		File[] ficheros = new File(ruta(rutaRelativa)).listFiles();
 		if (ficheros == null) {
@@ -124,18 +81,7 @@ public class GestorFicheros {
 		}
 	}
 
-	// =================================================================
-	// OPERACIONES BÁSICAS: LEER Y ESCRIBIR LÍNEAS
-	// TODO LO DEMÁS SE CONSTRUYE ENCIMA DE ESTAS DOS.
-	// =================================================================
-
-	/*
-	 * LEE LÍNEAS DE TEXTO DE UN FICHERO HASTA UN MÁXIMO.
-	 * COMO NO USAMOS LISTAS Y NO SABEMOS CUÁNTAS LÍNEAS HABRÁ:
-	 * 1. SE LEE EN UN ARRAY "TEMPORAL" DE TAMAÑO MÁXIMO.
-	 * 2. SE COPIA A UN ARRAY DE TAMAÑO EXACTO.
-	 * DEVUELVE null SI EL FICHERO NO EXISTE O NO SE PUDO LEER.
-	 */
+	/* LEER LÍNEAS DE FICHERO */
 	private static String[] leerLineas(String rutaRelativa, int maxLineas) {
 		File fichero = new File(ruta(rutaRelativa));
 		if (!fichero.exists()) {
@@ -145,7 +91,6 @@ public class GestorFicheros {
 		String[] temporal = new String[maxLineas];
 		int total = 0;
 
-		// EL Scanner SE CIERRA SOLO AL TERMINAR EL BLOQUE
 		try (Scanner lector = new Scanner(fichero)) {
 			while (lector.hasNextLine() && total < maxLineas) {
 				temporal[total] = lector.nextLine();
@@ -155,7 +100,6 @@ public class GestorFicheros {
 			return null;
 		}
 
-		// COPIAR A UN ARRAY CON EL TAMAÑO JUSTO
 		String[] resultado = new String[total];
 		for (int i = 0; i < total; i++) {
 			resultado[i] = temporal[i];
@@ -163,14 +107,8 @@ public class GestorFicheros {
 		return resultado;
 	}
 
-	/*
-	 * ESCRIBE UN ARRAY DE LÍNEAS EN UN FICHERO.
-	 * anadir = true  -> AÑADE AL FINAL DE LO QUE YA HAY.
-	 * anadir = false -> BORRA LO ANTERIOR Y ESCRIBE DE CERO.
-	 * DEVUELVE TRUE SI SE ESCRIBIÓ BIEN.
-	 */
+	/* ESCRIBIR LÍNEAS EN FICHERO */
 	private static boolean escribirLineas(String rutaRelativa, String[] lineas, boolean anadir) {
-		// try-with-resources: EL PrintWriter SE CIERRA (Y GUARDA) SOLO AL TERMINAR
 		try (PrintWriter escritor = new PrintWriter(new FileWriter(ruta(rutaRelativa), anadir))) {
 			for (String linea : lineas) {
 				escritor.println(linea);
@@ -182,21 +120,12 @@ public class GestorFicheros {
 		}
 	}
 
-	// =================================================================
-	// ESTADO DE LA PARTIDA
-	// =================================================================
-
-	/* GUARDA EL ESTADO ACTUAL EN host/estado.txt. */
+	/* GUARDAR ESTADO DE LA PARTIDA */
 	public static void guardarEstado(Estado estado) {
 		escribirLineas(RUTA_ESTADO, estado.aLineas(), false);
 	}
 
-	/*
-	 * LEE EL ESTADO ACTUAL DESDE host/estado.txt.
-	 * DEVUELVE null SI EL FICHERO NO EXISTE, ESTÁ INCOMPLETO O TIENE DATOS
-	 * ROTOS (POR EJEMPLO, SI EL HOST LO ESTABA ESCRIBIENDO JUSTO AHORA).
-	 * QUIEN LLAME DEBE COMPROBAR EL null Y REINTENTAR MÁS TARDE.
-	 */
+	/* LEER ESTADO DE LA PARTIDA */
 	public static Estado leerEstado() {
 		String[] lineas = leerLineas(RUTA_ESTADO, Estado.NUM_LINEAS);
 
@@ -211,21 +140,17 @@ public class GestorFicheros {
 		}
 	}
 
-	// =================================================================
-	// BOLAS
-	// =================================================================
-
-	/* VACÍA EL HISTORIAL DE BOLAS. SI NO SE HACE AL EMPEZAR, SE MEZCLARÍAN CON LAS DE PARTIDAS ANTERIORES. */
+	/* REINICIAR HISTORIAL DE BOLAS */
 	public static void reiniciarBolas() {
 		escribirLineas(RUTA_BOLAS, new String[0], false);
 	}
 
-	/* AÑADE UNA BOLA AL HISTORIAL (host/bolas.txt). */
+	/* GUARDAR BOLA EXTRAÍDA */
 	public static void guardarBola(int bola) {
 		escribirLineas(RUTA_BOLAS, new String[] { String.valueOf(bola) }, true);
 	}
 
-	/* LEE TODAS LAS BOLAS QUE HAN SALIDO, EN ORDEN DE SALIDA. */
+	/* LEER HISTORIAL DE BOLAS */
 	public static int[] leerBolas() {
 		String[] lineas = leerLineas(RUTA_BOLAS, Bombo.TOTAL_BOLAS);
 		if (lineas == null) {
@@ -237,50 +162,214 @@ public class GestorFicheros {
 			try {
 				bolas[i] = Integer.parseInt(lineas[i].trim());
 			} catch (NumberFormatException e) {
-				bolas[i] = 0; // LÍNEA ROTA: SE GUARDA 0, QUE EL CARTÓN IGNORA
+				bolas[i] = 0;
 			}
 		}
 		return bolas;
 	}
 
-	// =================================================================
-	// CARTONES
-	// =================================================================
+	/* GUARDAR BOTE ACTUAL EN CÉNTIMOS */
+	public static void guardarBote(int centimos) {
+		escribirLineas(RUTA_BOTE, new String[] { String.valueOf(centimos) }, false);
+	}
 
-	/* COMPRUEBA SI EL JUGADOR YA TIENE UN CARTÓN GUARDADO. */
+	/* LEER BOTE ACTUAL EN CÉNTIMOS */
+	public static int leerBote() {
+		String[] lineas = leerLineas(RUTA_BOTE, 1);
+		if (lineas == null || lineas.length == 0) {
+			return -1;
+		}
+		try {
+			return Integer.parseInt(lineas[0].trim());
+		} catch (NumberFormatException e) {
+			return -1;
+		}
+	}
+
+	/* COMPROBAR SI EXISTE CARTÓN DE JUGADOR */
 	public static boolean existeCarton(String nombre) {
 		return new File(ruta(DIR_JUGADORES + nombre + ".txt")).exists();
 	}
 
-	/*
-	 * GUARDA EL CARTÓN EN 2 SITIOS:
-	 * 1. jugadores/<nombre>.txt     : PARA QUE EL JUGADOR LO RECUPERE SI VUELVE.
-	 * 2. host/cartones/<nombre>.txt : COPIA PARA QUE EL HOST COMPRUEBE QUE UNA LÍNEA/BINGO ES REAL.
-	 */
+	/* GUARDAR CARTÓN EN JUGADOR Y HOST */
 	public static void guardarCarton(String nombre, Carton carton) {
 		String[] lineas = carton.aLineas();
 		escribirLineas(DIR_JUGADORES + nombre + ".txt", lineas, false);
 		escribirLineas(DIR_CARTONES_HOST + nombre + ".txt", lineas, false);
 	}
 
-	/* CARGA EL CARTÓN GUARDADO DE UN JUGADOR (null SI NO EXISTE O ESTÁ ROTO). */
+	/* CARGAR CARTÓN DE JUGADOR */
 	public static Carton cargarCarton(String nombre) {
 		String[] lineas = leerLineas(DIR_JUGADORES + nombre + ".txt", Carton.FILAS);
 		return Carton.deLineas(lineas);
 	}
 
-	// =================================================================
-	// RESPUESTAS S/N
-	// =================================================================
+	/* CARGAR CARTÓN DESDE EL HOST */
+	public static Carton cargarCartonHost(String nombre) {
+		String[] lineas = leerLineas(DIR_CARTONES_HOST + nombre + ".txt", Carton.FILAS);
+		return Carton.deLineas(lineas);
+	}
 
-	/*
-	 * ANOTA LA RESPUESTA DE UN JUGADOR A UNA BOLA EN host/respuestas/<nombre>.txt.
-	 * SE AÑADE UNA LÍNEA POR BOLA CON FORMATO "bola;S" O "bola;N". EJEMPLO: "42;S".
-	 * CON ESTE FICHERO EL HOST PODRÁ REPETIR TODAS LAS RESPUESTAS SOBRE LA COPIA
-	 * DEL CARTÓN Y COMPROBAR QUÉ HA PASADO DE VERDAD (SIN CREER SOLO AL JUGADOR).
-	 */
+	/* LISTAR NOMBRES DE JUGADORES */
+	public static String[] listarJugadores() {
+		File[] ficheros = new File(ruta(DIR_CARTONES_HOST)).listFiles();
+		if (ficheros == null) {
+			return new String[0];
+		}
+
+		int total = 0;
+		String[] temporal = new String[ficheros.length];
+		for (File f : ficheros) {
+			String nombreFichero = f.getName();
+			if (f.isFile() && nombreFichero.endsWith(".txt")) {
+				temporal[total] = nombreFichero.substring(0, nombreFichero.length() - ".txt".length());
+				total++;
+			}
+		}
+
+		String[] resultado = new String[total];
+		for (int i = 0; i < total; i++) {
+			resultado[i] = temporal[i];
+		}
+		return resultado;
+	}
+
+	/* GUARDAR RESPUESTA S/N DE JUGADOR */
 	public static void guardarRespuesta(String nombre, int bola, boolean dijoSi) {
 		String letra = dijoSi ? "S" : "N";
 		escribirLineas(DIR_RESPUESTAS + nombre + ".txt", new String[] { bola + ";" + letra }, true);
+	}
+
+	/* LEER RESPUESTAS S/N DE JUGADOR */
+	public static String[][] leerRespuestas(String nombre) {
+		String[] lineas = leerLineas(DIR_RESPUESTAS + nombre + ".txt", Bombo.TOTAL_BOLAS);
+		if (lineas == null || lineas.length == 0) {
+			return new String[0][0];
+		}
+		String[][] resultado = new String[lineas.length][2];
+		for (int i = 0; i < lineas.length; i++) {
+			String[] partes = lineas[i].split(";");
+			if (partes.length == 2) {
+				resultado[i][0] = partes[0].trim();
+				resultado[i][1] = partes[1].trim().toUpperCase();
+			} else {
+				resultado[i][0] = "0";
+				resultado[i][1] = "N";
+			}
+		}
+		return resultado;
+	}
+
+	/* RUTA FICHERO RECLAMO */
+	private static String rutaReclamo(String nombre) {
+		return DIR_RECLAMACIONES + nombre + "_reclamo.txt";
+	}
+
+	/* RUTA FICHERO PREGUNTA */
+	private static String rutaPregunta(String nombre) {
+		return DIR_RECLAMACIONES + nombre + "_pregunta.txt";
+	}
+
+	/* RUTA FICHERO RESPUESTA RECLAMO */
+	private static String rutaRespuestaReclamo(String nombre) {
+		return DIR_RECLAMACIONES + nombre + "_respuesta.txt";
+	}
+
+	/* RUTA FICHERO RESULTADO RECLAMO */
+	private static String rutaResultado(String nombre) {
+		return DIR_RECLAMACIONES + nombre + "_resultado.txt";
+	}
+
+	/* GUARDAR RECLAMO DE LÍNEA O BINGO */
+	public static void guardarReclamo(String nombre, String tipo) {
+		escribirLineas(rutaReclamo(nombre), new String[] { tipo }, false);
+	}
+
+	/* LEER RECLAMO DE JUGADOR */
+	public static String leerReclamo(String nombre) {
+		String[] lineas = leerLineas(rutaReclamo(nombre), 1);
+		if (lineas == null || lineas.length == 0) {
+			return null;
+		}
+		return lineas[0].trim().toUpperCase();
+	}
+
+	/* COMPROBAR SI EXISTE RECLAMO */
+	public static boolean existeReclamo(String nombre) {
+		return new File(ruta(rutaReclamo(nombre))).exists();
+	}
+
+	/* LISTAR RECLAMOS PENDIENTES */
+	public static String[] listarReclamosPendientes() {
+		File carpeta = new File(ruta(DIR_RECLAMACIONES));
+		File[] ficheros = carpeta.listFiles();
+		if (ficheros == null || ficheros.length == 0) {
+			return new String[0];
+		}
+
+		int total = 0;
+		String[] temporal = new String[ficheros.length];
+		for (File f : ficheros) {
+			String nombreFichero = f.getName();
+			if (nombreFichero.endsWith("_reclamo.txt")) {
+				String nombre = nombreFichero.substring(0, nombreFichero.length() - "_reclamo.txt".length());
+				if (!new File(ruta(rutaResultado(nombre))).exists()) {
+					temporal[total] = nombre;
+					total++;
+				}
+			}
+		}
+
+		String[] resultado = new String[total];
+		for (int i = 0; i < total; i++) {
+			resultado[i] = temporal[i];
+		}
+		return resultado;
+	}
+
+	/* GUARDAR PREGUNTA PARA EL RECLAMO */
+	public static void guardarPreguntaReclamo(String nombre, String[] lineasPregunta) {
+		escribirLineas(rutaPregunta(nombre), lineasPregunta, false);
+	}
+
+	/* LEER PREGUNTA DEL RECLAMO */
+	public static String[] leerPreguntaReclamo(String nombre) {
+		return leerLineas(rutaPregunta(nombre), 10);
+	}
+
+	/* GUARDAR RESPUESTA A PREGUNTA DE RECLAMO */
+	public static void guardarRespuestaReclamo(String nombre, String letra) {
+		escribirLineas(rutaRespuestaReclamo(nombre), new String[] { letra.trim().toUpperCase() }, false);
+	}
+
+	/* LEER RESPUESTA A PREGUNTA DE RECLAMO */
+	public static String leerRespuestaReclamo(String nombre) {
+		String[] lineas = leerLineas(rutaRespuestaReclamo(nombre), 1);
+		if (lineas == null || lineas.length == 0) {
+			return null;
+		}
+		return lineas[0].trim().toUpperCase();
+	}
+
+	/* GUARDAR RESULTADO DE RECLAMO */
+	public static void guardarResultadoReclamo(String nombre, String resultado) {
+		escribirLineas(rutaResultado(nombre), new String[] { resultado }, false);
+	}
+
+	/* LEER RESULTADO DE RECLAMO */
+	public static String leerResultadoReclamo(String nombre) {
+		String[] lineas = leerLineas(rutaResultado(nombre), 1);
+		if (lineas == null || lineas.length == 0) {
+			return null;
+		}
+		return lineas[0].trim().toUpperCase();
+	}
+
+	/* LIMPIAR FICHEROS DE RECLAMACIÓN */
+	public static void limpiarFicherosReclamo(String nombre) {
+		new File(ruta(rutaReclamo(nombre))).delete();
+		new File(ruta(rutaPregunta(nombre))).delete();
+		new File(ruta(rutaRespuestaReclamo(nombre))).delete();
+		new File(ruta(rutaResultado(nombre))).delete();
 	}
 }

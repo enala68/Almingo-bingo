@@ -1,15 +1,9 @@
 package comun;
 
-/*
- * UTILIDADES COMUNES
- * FUNCIONES QUE USAN VARIAS CLASES.
- */
+/* UTILIDADES COMUNES */
 public class Utilidades {
 
-	/*
-	 * DETIENE EL PROGRAMA UNOS MILISEGUNDOS (1000 = 1 SEGUNDO).
-	 * Thread.sleep OBLIGA A CAPTURAR InterruptedException (SI ALGO INTERRUMPE LA ESPERA).
-	 */
+	/* DETENER EL PROGRAMA EN MILISEGUNDOS */
 	public static void pausar(int milisegundos) {
 		try {
 			Thread.sleep(milisegundos);
@@ -18,12 +12,12 @@ public class Utilidades {
 		}
 	}
 
-	/* BORRA LA PANTALLA DEL PROGRAMA. */
+	/* BORRAR PANTALLA DE LA TERMINAL */
 	public static void limpiarPantalla() {
 		try {
 			new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();
 		} catch (Exception e) {
-			// NO SE PUDO LIMPIAR: EL JUEGO FUNCIONA IGUAL, SOLO SE VE MÁS LARGO
+			// IGNORAR SI FALLA LA LIMPIEZA
 		}
 	}
 }
