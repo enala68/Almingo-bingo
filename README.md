@@ -43,9 +43,15 @@ La base de datos sigue un diseño de 3ª Forma Normal (3FN), garantizando la aus
 ## 📂 Estructura del Proyecto
 
 ```text
-src/
-├── controller/       # Lógica del juego y control de flujo
-├── model/            # Clases POJO, Entidades y Data Access Objects (DAO)
-├── view/             # Interfaz de usuario (UI / Consola o GUI)
-├── db/               # Scripts SQL (Tablas 3FN, Triggers, Consultas)
-└── utils/            # Gestor de preguntas aleatorias y validaciones
+BingoCompartido  (carpeta compartida en la red)
+├── bin/                    (el programa ya compilado)
+├── host/
+│   ├── estado.txt
+│   ├── bolas.txt
+│   ├── bote.txt
+│   ├── cartones/
+│   └── respuestas/
+├── jugadores/
+├── reclamaciones/
+├── ejecutar_jugador.bat
+└── README.txt
