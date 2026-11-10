@@ -1,0 +1,4 @@
+fase=ESPERANDO
+version=0
+ultimaBola=0
+idPartida=1

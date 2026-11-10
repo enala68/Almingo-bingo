@@ -1,106 +1,98 @@
 package comun;
 
-import java.util.List;
-import java.util.Map;
-
+/* ESTADO GLOBAL DE LA PARTIDA */
 public class Estado {
-	// EN QUE FASE ESTAMOS? (ESPERANDO, JUGANDO, VALIDANDO, FINALIZADA
-	
-	// QUE VERSION ES? INT QUE INDIQUE EL ESTADO
-	
-	// CUÁL HA SIDO LA ÚLTIMA BOLA? INT (1-90)
-	
-	// ID DE LA PARTIDA ACTUAL
-	
-	// ATRIBUTOS
-	private String fase;
-	private int version;
-	private int ultimaBola;
-	private int idPartida;
-	
-	// CONSTRUCTORES
+
+	/* FASE ESPERANDO */
+	public static final String FASE_ESPERANDO = "ESPERANDO";
+
+	/* FASE JUGANDO */
+	public static final String FASE_JUGANDO = "JUGANDO";
+
+	/* FASE VALIDANDO */
+	public static final String FASE_VALIDANDO = "VALIDANDO";
+
+	/* FASE FINALIZADA */
+	public static final String FASE_FINALIZADA = "FINALIZADA";
+
+	/* FASE CANCELADA */
+	public static final String FASE_CANCELADA = "CANCELADA";
+
+	/* NÚMERO DE LÍNEAS DE ESTADO */
+	public static final int NUM_LINEAS = 4;
+
+	private String fase;      
+	private int version;      
+	private int ultimaBola;   
+	private int idPartida;    
+
+	/* CREAR ESTADO EN BLANCO */
 	public Estado() {
-		this.fase = "ESPERANDO";
-		this.version = 0;
-		this.ultimaBola = 0;
-		this.idPartida = 0;
+		this(FASE_ESPERANDO, 0, 0, 0);
 	}
-	
+
+	/* CREAR ESTADO COMPLETO */
 	public Estado(String fase, int version, int ultimaBola, int idPartida) {
 		this.fase = fase;
 		this.version = version;
 		this.ultimaBola = ultimaBola;
 		this.idPartida = idPartida;
 	}
-	
-	// GETTERS AND SETTERS
-	// FASE
-	public void setFase(String fase) {
-		this.fase = fase;
+
+	/* OBTENER FASE */
+	public String getFase() { return fase; }
+
+	/* ESTABLECER FASE */
+	public void setFase(String fase) { this.fase = fase; }
+
+	/* OBTENER VERSIÓN */
+	public int getVersion() { return version; }
+
+	/* ESTABLECER VERSIÓN */
+	public void setVersion(int version) { this.version = version; }
+
+	/* OBTENER ÚLTIMA BOLA */
+	public int getUltimaBola() { return ultimaBola; }
+
+	/* ESTABLECER ÚLTIMA BOLA */
+	public void setUltimaBola(int ultimaBola) { this.ultimaBola = ultimaBola; }
+
+	/* OBTENER ID DE PARTIDA */
+	public int getIdPartida() { return idPartida; }
+
+	/* ESTABLECER ID DE PARTIDA */
+	public void setIdPartida(int idPartida) { this.idPartida = idPartida; }
+
+	/* INCREMENTAR VERSIÓN EN 1 */
+	public void incrementarVersion() {
+		this.version++;
 	}
-	
-	public String getFase() {
-		return fase;
-	}
-	
-	// VERSION
-	public void setVersion(int version) {
-		this.version = version;
-	}
-	
-	public int getVersion() {
-		return version;
-	}
-	
-	// ULTIMABOLA
-	public void setUltimaBola(int ultimaBola) {
-		this.ultimaBola = ultimaBola;
-	}
-	
-	public int getUltimaBola() {
-		return ultimaBola;
-	}
-	
-	// ID PARTIDA
-	public void setIdPartida(int idPartida) {
-		this.idPartida = idPartida;
-	}
-	
-	public int getIdPartida() {
-		return idPartida;
-	}
-	
-	// CONVERSIONES PARA LEER Y ESCRIBIR EN EL .TXT DEL HOST
-	// CONVERTIR OBJETO EN ARRAY DE LINEAS
+
+	/* CONVERTIR ESTADO A LÍNEAS DE TEXTO */
 	public String[] aLineas() {
-		String[] lineas = new String[4];
+		String[] lineas = new String[NUM_LINEAS];
 		lineas[0] = "fase=" + fase;
 		lineas[1] = "version=" + version;
 		lineas[2] = "ultimaBola=" + ultimaBola;
 		lineas[3] = "idPartida=" + idPartida;
-		
 		return lineas;
 	}
-	
-	// CONVERTIR ARRAY D LINEAS EN OBJETO
+
+	/* RECONSTRUIR ESTADO DESDE LÍNEAS */
 	public static Estado deLineas(String[] lineas) {
 		Estado estado = new Estado();
-		
-		for(int i = 0; i < lineas.length; i++) {
-			String linea = lineas[i];
-			
-			// CONTROL DE ERRORES
+
+		for (int i = 0; i < lineas.length; i++) {
 			if (lineas[i] == null) {
-				System.out.println("Error. falta elemento en Estado de la partida");
 				continue;
 			}
-			// DIVIDIR TEXTO EN "="
-			String[] partes = linea.split("=", 2);
-			
+
+			String[] partes = lineas[i].split("=", 2);
+
 			if (partes.length == 2) {
 				String clave = partes[0].trim();
 				String valor = partes[1].trim();
-				
+
 				if (clave.equals("fase")) {
 					estado.setFase(valor);
 				} else if (clave.equals("version")) {
@@ -111,8 +103,7 @@ public class Estado {
 					estado.setIdPartida(Integer.parseInt(valor));
 				}
 			}
-			
-		} return estado;
+		}
+		return estado;
 	}
-
 }
