@@ -231,6 +231,19 @@ public class JugadorMain {
 
 	/* MUESTRA POR PANTALLA CÓMO FUNCIONA LA MECÁNICA DEL JUEGO. */
 	private static void explicarReglas() {
+		// Códigos de color ANSI
+				String MORADO = "\033[95m";
+				String ROSA = "\033[1;95m";
+				String RESET = "\033[0m";
+
+				System.out.println(ROSA + "________  ___       _____ ______   ___  ________   ________  ________      " + RESET);
+				System.out.println(MORADO + "|\\   __  \\|\\  \\       |\\   _ \\  _   \\|\\  \\|\\   __  \\|\\   ____\\|\\   __  \\    " + RESET);
+				System.out.println(MORADO + "\\ \\  \\|\\  \\ \\  \\       \\ \\  \\__\\ \\  \\ \\  \\ \\  \\\\ \\  \\ \\  \\___|\\ \\  \\|\\  \\    " + RESET);
+				System.out.println(MORADO + " \\ \\   __  \\ \\  \\       \\ \\  \\|__| \\  \\ \\  \\ \\  \\\\ \\  \\ \\  \\  __\\ \\  \\\\\\  \\   " + RESET);
+				System.out.println(MORADO + "  \\ \\  \\ \\  \\ \\  \\____\\ \\  \\    \\ \\  \\ \\  \\ \\  \\\\ \\  \\ \\  \\|\\  \\ \\  \\\\\\  \\  " + RESET);
+				System.out.println(ROSA + "   \\ \\__\\ \\__\\ \\_______\\\\ \\__\\    \\ \\__\\ \\__\\ \\__\\\\ \\__\\ \\_______\\ \\_______\\ " + RESET);
+				System.out.println(ROSA + "    \\|__|\\|__|\\_______|\\__|     \\|__|\\|__|\\__| \\__|\\_______|\\_______| " + RESET);
+
 		System.out.println("\n=== CÓMO SE JUEGA ===");
 		System.out.println("Cada vez que salga una bola, escribe S si está en tu cartón o N si no, y pulsa ENTER.");
 		System.out.println("Tienes " + (Reglas.TIEMPO_RESPUESTA_MS / 1000)
@@ -251,6 +264,7 @@ public class JugadorMain {
 		System.out.println("de sostenibilidad (A, B o C). Si la aciertas, ganas el premio.");
 		System.out.println("\n[ESPERANDO] Conectado al Host. Esperando extracción de bolas...");
 	}
+
 
 	// ========== PANTALLA ==========
 
