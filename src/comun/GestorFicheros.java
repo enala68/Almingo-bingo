@@ -6,36 +6,29 @@ import java.io.PrintWriter;
 import java.util.Scanner;
 
 /*
- * GESTOR DE FICHEROS
- * ---------------------------------------------------------------------
- * ÚNICA CLASE QUE LEE Y ESCRIBE FICHEROS.
- * TANTO EL HOST COMO EL JUGADOR LA UTILIZAN.
+ * GESTOR DE FICHEROS.
+ * ÚNICA CLASE QUE LEE Y ESCRIBE FICHEROS (LA USAN HOST Y JUGADOR).
  *
- * ESTRUCTURA DE FICHEROS (dentro de la carpeta base):
- *   host/estado.txt              -> ESTADO ACTUAL DE LA PARTIDA
+ * ESTRUCTURA (DENTRO DE LA CARPETA BASE):
+ *   host/estado.txt              -> ESTADO DE LA PARTIDA
  *   host/bolas.txt               -> HISTORIAL DE BOLAS
- *   host/bote.txt                -> BOTE ACTUAL EN CÉNTIMOS (LO ESCRIBE EL HOST, LO LEEN LOS JUGADORES)
+ *   host/bote.txt                -> BOTE EN CÉNTIMOS (LO ESCRIBE EL HOST)
  *   host/cartones/<nombre>.txt   -> COPIA DE CADA CARTÓN PARA VALIDAR
- *   host/respuestas/<nombre>.txt -> RESPUESTAS S/N DE CADA JUGADOR (UNA LÍNEA POR BOLA: "42;S")
+ *   host/respuestas/<nombre>.txt -> RESPUESTAS S/N (UNA LÍNEA POR BOLA: "42;S")
  *   jugadores/<nombre>.txt       -> CARTÓN DE CADA JUGADOR
- *   reclamaciones/               -> FICHEROS DEL FLUJO DE LÍNEA/BINGO
+ *   reclamaciones/               -> FICHEROS DE LÍNEA/BINGO
  *
- * RUTA BASE:
- *   POR DEFECTO TRABAJA EN LA RUTA ACTUAL ("").
- *   SE PUEDE CAMBIAR CON setRutaBase(...) PARA USAR UNA CARPETA COMPARTIDA EN RED
- *   (ejemplo: "\\\\192.168.0.112\\BingoCompartido").
+ * RUTA BASE: POR DEFECTO LA ACTUAL (""). SE CAMBIA CON setRutaBase(...) PARA USAR
+ * UNA CARPETA EN RED (EJEMPLO: "\\\\192.168.0.112\\BingoCompartido").
  */
 public class GestorFicheros {
 
 	// ---------------------------------------------------------------
-	// RUTA BASE (carpeta compartida). Por defecto carpeta actual.
+	// RUTA BASE (POR DEFECTO, CARPETA ACTUAL)
 	// ---------------------------------------------------------------
 	private static String rutaBase = "";
 
-	/**
-	 * Establece la carpeta raíz donde se crearán host/, jugadores/, etc.
-	 * Debe llamarse ANTES de crearDirectorios() o cualquier otra operación.
-	 */
+	/** ESTABLECE LA CARPETA RAÍZ. LLAMAR ANTES DE CUALQUIER OTRA OPERACIÓN. */
 	public static void setRutaBase(String ruta) {
 		if (ruta == null || ruta.trim().isEmpty()) {
 			rutaBase = "";
@@ -48,12 +41,12 @@ public class GestorFicheros {
 		}
 	}
 
-	/** Devuelve la ruta base actual (vacía = carpeta de trabajo). */
+	/** DEVUELVE LA RUTA BASE (VACÍA = CARPETA DE TRABAJO). */
 	public static String getRutaBase() {
 		return rutaBase;
 	}
 
-	/** Construye una ruta completa a partir de la base + ruta relativa. */
+	/** CONSTRUYE LA RUTA COMPLETA: BASE + RELATIVA. */
 	private static String ruta(String relativa) {
 		if (rutaBase.isEmpty()) {
 			return relativa;
@@ -204,18 +197,12 @@ public class GestorFicheros {
 	// BOTE
 	// =================================================================
 
-	/*
-	 * GUARDA EL BOTE ACTUAL (EN CÉNTIMOS) EN host/bote.txt.
-	 * LO ESCRIBE SOLO EL HOST; LOS JUGADORES LO LEEN PARA MOSTRARLO EN SU PANTALLA.
-	 */
+	/* GUARDA EL BOTE (EN CÉNTIMOS) EN host/bote.txt. SOLO LO ESCRIBE EL HOST. */
 	public static void guardarBote(int centimos) {
 		escribirLineas(RUTA_BOTE, new String[] { String.valueOf(centimos) }, false);
 	}
 
-	/*
-	 * LEE EL BOTE ACTUAL EN CÉNTIMOS.
-	 * DEVUELVE -1 SI TODAVÍA NO EXISTE (EL HOST AÚN NO LO HA PUBLICADO) O SE LEE A MEDIAS.
-	 */
+	/* LEE EL BOTE EN CÉNTIMOS. DEVUELVE -1 SI NO EXISTE AÚN O SE LEE A MEDIAS. */
 	public static int leerBote() {
 		String[] lineas = leerLineas(RUTA_BOTE, 1);
 		if (lineas == null || lineas.length == 0) {
@@ -252,11 +239,7 @@ public class GestorFicheros {
 		return Carton.deLineas(lineas);
 	}
 
-	/*
-	 * DEVUELVE LOS NOMBRES DE TODOS LOS JUGADORES DE LA PARTIDA.
-	 * HAY UN JUGADOR POR CADA CARTÓN GUARDADO EN host/cartones/ (EL NOMBRE ES EL
-	 * DEL FICHERO SIN ".txt"). SE USA PARA CONTAR JUGADORES Y CALCULAR EL BOTE.
-	 */
+	/* DEVUELVE LOS NOMBRES DE LOS JUGADORES (UN CARTÓN EN host/cartones/ POR JUGADOR). */
 	public static String[] listarJugadores() {
 		File[] ficheros = new File(ruta(DIR_CARTONES_HOST)).listFiles();
 		if (ficheros == null) {

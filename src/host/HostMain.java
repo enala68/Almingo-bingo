@@ -10,59 +10,51 @@ import comun.Reglas;
 import comun.Utilidades;
 
 /*
- * SERVIDOR (HOST) DEL BINGO
- *
- * EL HOST ESCRIBE EN FICHEROS Y LOS JUGADORES LOS LEEN.
- * GESTIONA BOLAS, BOTE, RECLAMACIONES DE LÍNEA/BINGO Y PREGUNTAS DE SOSTENIBILIDAD.
+ * SERVIDOR (HOST) DEL BINGO.
+ * ESCRIBE EN FICHEROS Y LOS JUGADORES LOS LEEN.
+ * GESTIONA BOLAS, BOTE, RECLAMACIONES Y PREGUNTAS DE SOSTENIBILIDAD.
  *
  * FLUJO:
- *   1. PREPARAR CARPETAS Y LIMPIAR RESTOS.
- *   2. ESTADO ESPERANDO + TIEMPO PARA CONECTARSE.
- *   3. CONTAR JUGADORES (CARTONES) Y FORMAR EL BOTE CON LAS ENTRADAS.
- *   4. SACAR BOLAS; ENTRE BOLAS ATIENDE RECLAMACIONES (FASE VALIDANDO) Y ACTUALIZA EL BOTE CON LAS MULTAS DE LOS JUGADORES.
- *   5. FINALIZAR CUANDO SE ACABE EL BOMBO O HAYA BINGO VÁLIDO.
+ *   1. PREPARAR CARPETAS.
+ *   2. ESPERAR JUGADORES.
+ *   3. FORMAR EL BOTE CON LAS ENTRADAS.
+ *   4. SACAR BOLAS Y ATENDER RECLAMACIONES.
+ *   5. FINALIZAR (BOMBO VACÍO O BINGO VÁLIDO).
  *
- * EL BOTE:
- *   BOTE = ENTRADAS + MULTAS - PREMIOS YA REPARTIDOS
- *   - ENTRADAS: Reglas.ENTRADA_CTS POR CADA JUGADOR (SE FIJAN AL EMPEZAR).
- *   - MULTAS: EL HOST REPITE LAS RESPUESTAS S/N DE CADA JUGADOR SOBRE LA COPIA DE
- *     SU CARTÓN Y CUENTA SUS FALSAS ALARMAS. ASÍ NO SE FÍA DE LO QUE DIGA EL JUGADOR.
- *   - CADA VEZ QUE CAMBIA, SE PUBLICA EN host/bote.txt PARA QUE LOS JUGADORES LO VEAN.
+ * BOTE = ENTRADAS + MULTAS - PREMIOS REPARTIDOS.
+ * EL HOST RECALCULA LAS MULTAS REPITIENDO LAS RESPUESTAS S/N DE CADA JUGADOR.
+ * EL BOTE SE PUBLICA EN host/bote.txt CADA VEZ QUE CAMBIA.
  */
 public class HostMain {
 
 	private static final int ID_PARTIDA = 1;
 
-	/*
-	 * TIEMPO QUE EL HOST MANTIENE EL RESULTADO DE UNA RECLAMACIÓN ANTES DE BORRAR LOS
-	 * FICHEROS (4 SEG). ASÍ EL JUGADOR TIENE TIEMPO DE LEERLO AUNQUE LA CARPETA
-	 * COMPARTIDA VAYA LENTA.
-	 */
+	/* PAUSA PARA QUE EL JUGADOR LEA EL RESULTADO (4 SEG). */
 	private static final int PAUSA_RESULTADO_MS = 4000;
 
-	/* CADA CUÁNTO SE RECALCULAN LAS MULTAS Y SE ACTUALIZA EL BOTE (1 SEG). */
+	/* INTERVALO DE ACTUALIZACIÓN DEL BOTE (1 SEG). */
 	private static final int INTERVALO_BOTE_MS = 1000;
 
 	// ---------------------------------------------------------------
-	// DINERO (TODO EN CÉNTIMOS)
+	// DINERO (EN CÉNTIMOS)
 	// ---------------------------------------------------------------
 
-	/* ENTRADAS: UNA POR JUGADOR. SE FIJA UNA SOLA VEZ, AL EMPEZAR LA PARTIDA. */
+	/* ENTRADAS: UNA POR JUGADOR, FIJADAS AL EMPEZAR. */
 	private static int entradasCts = 0;
 
-	/* MULTAS DE TODOS LOS JUGADORES. SE RECALCULA CADA INTERVALO_BOTE_MS. */
+	/* MULTAS DE TODOS LOS JUGADORES. */
 	private static int multasCts = 0;
 
-	/* PREMIOS QUE YA SE HAN REPARTIDO (SE RESTAN DEL BOTE). */
+	/* PREMIOS YA REPARTIDOS. */
 	private static int premiosPagadosCts = 0;
 
-	/* ÚLTIMO BOTE PUBLICADO EN host/bote.txt (-1 = NINGUNO TODAVÍA). SIRVE PARA PUBLICAR SOLO SI CAMBIA. */
+	/* ÚLTIMO BOTE PUBLICADO (-1 = NINGUNO). */
 	private static int botePublicadoCts = -1;
 
-	/* HORA (EN MILISEGUNDOS) DE LA ÚLTIMA ACTUALIZACIÓN DEL BOTE. */
+	/* HORA DE LA ÚLTIMA ACTUALIZACIÓN DEL BOTE. */
 	private static long ultimaActualizacionBote = 0;
 
-	/* PREMIOS DE LINEA QUE SE HAN CONCEDIDO */
+	/* PREMIOS DE LÍNEA CONCEDIDOS. */
 	private static int premiosLineaDados = 0;
 
 	/* BANCO DE PREGUNTAS. */
@@ -119,10 +111,7 @@ public class HostMain {
 	// BOTE
 	// =================================================================
 
-	/*
-	 * CUENTA LOS JUGADORES (UN CARTÓN POR JUGADOR) Y FORMA EL BOTE CON SUS ENTRADAS.
-	 * AL FINAL LO PUBLICA PARA QUE LOS JUGADORES YA LO VEAN EN LA PRIMERA BOLA.
-	 */
+	/* CUENTA JUGADORES, FORMA EL BOTE CON SUS ENTRADAS Y LO PUBLICA. */
 	private static void calcularBoteInicial() {
 		int jugadores = GestorFicheros.listarJugadores().length;
 
@@ -133,15 +122,12 @@ public class HostMain {
 		actualizarBote();
 	}
 
-	/* DEVUELVE EL BOTE ACTUAL EN CÉNTIMOS: ENTRADAS + MULTAS - PREMIOS REPARTIDOS. */
+	/* BOTE ACTUAL EN CÉNTIMOS. */
 	private static int calcularBote() {
 		return entradasCts + multasCts - premiosPagadosCts;
 	}
 
-	/*
-	 * RECALCULA LAS MULTAS DE TODOS LOS JUGADORES Y, SI EL BOTE HA CAMBIADO, LO PUBLICA
-	 * EN host/bote.txt Y LO ESCRIBE EN LA CONSOLA DEL HOST.
-	 */
+	/* RECALCULA MULTAS Y PUBLICA EL BOTE SI HA CAMBIADO. */
 	private static void actualizarBote() {
 		ultimaActualizacionBote = System.currentTimeMillis();
 
@@ -157,11 +143,8 @@ public class HostMain {
 	}
 
 	/*
-	 * CALCULA LAS MULTAS DE TODOS LOS JUGADORES.
-	 * PARA CADA JUGADOR SE REPITEN SUS RESPUESTAS S/N SOBRE LA COPIA DE SU CARTÓN Y SE
-	 * CUENTAN SUS FALSAS ALARMAS. LAS PRIMERAS (Reglas.FALSAS_ALARMAS_PERDONADAS) NO
-	 * CUESTAN NADA; LAS SIGUIENTES CUESTAN Reglas.MULTA_FALSA_ALARMA_CTS CADA UNA.
-	 * ES EL MISMO CÁLCULO QUE HACE EL JUGADOR PARA MOSTRAR SUS MULTAS.
+	 * CALCULA LAS MULTAS DE TODOS LOS JUGADORES CONTANDO SUS FALSAS ALARMAS.
+	 * LAS PRIMERAS (Reglas.FALSAS_ALARMAS_PERDONADAS) SON GRATIS.
 	 */
 	private static void recalcularMultas() {
 		String[] jugadores = GestorFicheros.listarJugadores();
@@ -188,7 +171,7 @@ public class HostMain {
 	// RONDAS
 	// =================================================================
 
-	/* SACA BOLAS Y ENTRE BOLAS ATIENDE RECLAMACIONES Y ACTUALIZA EL BOTE. */
+	/* SACA BOLAS, ATIENDE RECLAMACIONES Y ACTUALIZA EL BOTE. */
 	private static void jugarRondas(Bombo bombo, Estado estado) {
 		System.out.println("\n=== COMIENZA EL JUEGO ===");
 		System.out.println("Bote actual: " + Reglas.formatearEuros(calcularBote()));
@@ -200,7 +183,7 @@ public class HostMain {
 		boolean bingoValidado = false;
 
 		while (bombo.quedanBolas() && !bingoValidado) {
-			// ATENDER POSIBLES RECLAMOS ANTES DE SACAR LA SIGUIENTE BOLA
+			// ATENDER RECLAMOS ANTES DE SACAR BOLA
 			bingoValidado = atenderReclamos(estado);
 			if (bingoValidado) {
 				break;
@@ -219,22 +202,19 @@ public class HostMain {
 					+ ", Faltan: " + bombo.getBolasRestantes()
 					+ ", Bote: " + Reglas.formatearEuros(calcularBote()) + ")");
 
-			// ESPERA HASTA LA SIGUIENTE BOLA, ATENDIENDO RECLAMACIONES Y ACTUALIZANDO
-			// EL BOTE MIENTRAS TANTO (LOS JUGADORES VAN RESPONDIENDO Y PUEDEN SER MULTADOS)
+			// ESPERA A LA SIGUIENTE BOLA ATENDIENDO RECLAMOS Y ACTUALIZANDO EL BOTE
 			long finEspera = System.currentTimeMillis() + Reglas.TIEMPO_ENTRE_BOLAS_MS;
 			while (System.currentTimeMillis() < finEspera && !bingoValidado) {
 				long antes = System.currentTimeMillis();
 				bingoValidado = atenderReclamos(estado);
 
 				if (!bingoValidado) {
-					// SI HA TARDADO MÁS DE 2 SEGUNDOS, SE HA VALIDADO UNA RECLAMACIÓN Y LA
-					// PARTIDA HA ESTADO EN PAUSA: SE DA A LOS JUGADORES EL TIEMPO COMPLETO
-					// HASTA LA SIGUIENTE BOLA
+					// SI TARDÓ MÁS DE 2 SEG HUBO VALIDACIÓN: SE REINICIA LA ESPERA
 					if (System.currentTimeMillis() - antes > 2000) {
 						finEspera = System.currentTimeMillis() + Reglas.TIEMPO_ENTRE_BOLAS_MS;
 					}
 
-					// ACTUALIZAR EL BOTE CON LAS MULTAS NUEVAS (COMO MUCHO UNA VEZ POR SEGUNDO)
+					// ACTUALIZAR BOTE (COMO MUCHO UNA VEZ POR SEGUNDO)
 					if (System.currentTimeMillis() - ultimaActualizacionBote >= INTERVALO_BOTE_MS) {
 						actualizarBote();
 					}
@@ -255,7 +235,7 @@ public class HostMain {
 	// RECLAMACIONES
 	// =================================================================
 
-	/* PROCESA RECLAMOS PENDIENTES EN ORDEN DE LLEGADA. */
+	/* PROCESA LOS RECLAMOS PENDIENTES EN ORDEN DE LLEGADA. */
 	private static boolean atenderReclamos(Estado estado) {
 		String[] pendientes = GestorFicheros.listarReclamosPendientes();
 		if (pendientes.length == 0) {
@@ -263,13 +243,11 @@ public class HostMain {
 		}
 
 		boolean huboBingo = false;
-		boolean huboValidacion = false; // SE PUSO LA PARTIDA EN PAUSA PARA VALIDAR ALGO
+		boolean huboValidacion = false;
 
 		for (String nombre : pendientes) {
 
-			// LEER EL TIPO ANTES DE PONER LA PARTIDA EN PAUSA.
-			// SI EL JUGADOR TODAVÍA ESTÁ ESCRIBIENDO EL FICHERO, SE LEE VACÍO (null):
-			// NO SE BORRA NADA Y SE REINTENTA EN LA SIGUIENTE CONSULTA.
+			// SI EL JUGADOR AÚN ESTÁ ESCRIBIENDO EL FICHERO (null), SE REINTENTA DESPUÉS
 			String tipo = GestorFicheros.leerReclamo(nombre);
 			if (tipo == null) {
 				continue;
@@ -285,7 +263,7 @@ public class HostMain {
 
 			System.out.println("Tipo: " + tipo);
 
-			// VALIDAR RESPUESTAS SOBRE LA COPIA DEL CARTON
+			// VALIDAR SOBRE LA COPIA DEL CARTÓN
 			boolean jugadaValida = validarJugada(nombre, tipo);
 
 			if (!jugadaValida) {
@@ -298,7 +276,7 @@ public class HostMain {
 
 			System.out.println("Jugada VALIDADA.");
 
-			// LINEA FUERA DE LOS 3 PRIMEROS PREMIOS (SIN PREMIO PERO VALIDADA)
+			// LÍNEA VÁLIDA PERO SIN PREMIO (YA SE REPARTIERON TODOS)
 			if (tipo.equals(Reglas.TIPO_LINEA) && premiosLineaDados >= Reglas.MAX_PREMIOS_LINEA) {
 				System.out.println("Ya se repartieron los " + Reglas.MAX_PREMIOS_LINEA
 						+ " premios de línea. Resultado: TARDE.");
@@ -350,7 +328,7 @@ public class HostMain {
 			}
 		}
 
-		// VOLVER A JUGANDO SI SE HA VALIDADO ALGO Y NO HUBO BINGO
+		// VOLVER A JUGANDO SI HUBO VALIDACIÓN SIN BINGO
 		if (huboValidacion && !huboBingo) {
 			estado.setFase(Estado.FASE_JUGANDO);
 			estado.incrementarVersion();
@@ -360,10 +338,7 @@ public class HostMain {
 		return huboBingo;
 	}
 
-	/*
-	 * REPRODUCE LAS RESPUESTAS S/N DEL JUGADOR SOBRE LA COPIA DEL CARTÓN DEL HOST
-	 * Y COMPRUEBA LINEA/BINGO.
-	 */
+	/* REPRODUCE LAS RESPUESTAS DEL JUGADOR SOBRE SU CARTÓN Y COMPRUEBA LÍNEA/BINGO. */
 	private static boolean validarJugada(String nombre, String tipo) {
 		Carton carton = GestorFicheros.cargarCartonHost(nombre);
 		if (carton == null) {
@@ -383,13 +358,10 @@ public class HostMain {
 	}
 
 	/*
-	 * APLICA AL CARTÓN TODAS LAS RESPUESTAS S/N QUE EL JUGADOR HA DADO, EN ORDEN.
-	 * DESPUÉS, EL CARTÓN QUEDA IGUAL QUE EL DEL JUGADOR (TACHADOS, OLVIDOS, FALSAS ALARMAS).
-	 * SOLO SE TIENEN EN CUENTA LAS RESPUESTAS A BOLAS QUE HAN SALIDO DE VERDAD DEL BOMBO:
-	 * ASÍ UN JUGADOR NO PUEDE INVENTARSE RESPUESTAS A NÚMEROS QUE TODAVÍA NO HAN SALIDO.
-	 * LA USAN validarJugada (LÍNEA/BINGO) Y recalcularMultas (BOTE).
+	 * APLICA AL CARTÓN LAS RESPUESTAS S/N DEL JUGADOR, EN ORDEN.
+	 * SOLO CUENTAN LAS BOLAS QUE HAN SALIDO DE VERDAD DEL BOMBO.
 	 *
-	 * @param salidas BOLAS QUE HAN SALIDO HASTA AHORA
+	 * @param salidas BOLAS SALIDAS HASTA AHORA
 	 */
 	private static void reproducirRespuestas(Carton carton, String nombre, int[] salidas) {
 		String[][] respuestas = GestorFicheros.leerRespuestas(nombre);
@@ -403,12 +375,12 @@ public class HostMain {
 					carton.responder(bola, dijoSi);
 				}
 			} catch (NumberFormatException e) {
-				// LÍNEA ROTA EN EL FICHERO DE RESPUESTAS: SE IGNORA
+				// LÍNEA ROTA: SE IGNORA
 			}
 		}
 	}
 
-	/* COMPRUEBA SI UNA BOLA HA SALIDO YA DEL BOMBO (ESTÁ EN LA LISTA DE BOLAS SALIDAS). */
+	/* COMPRUEBA SI UNA BOLA YA HA SALIDO. */
 	private static boolean haSalido(int[] salidas, int bola) {
 		for (int i = 0; i < salidas.length; i++) {
 			if (salidas[i] == bola) {
@@ -418,7 +390,7 @@ public class HostMain {
 		return false;
 	}
 
-	/** ESPERA HASTA TIEMPO_PREGUNTA_MS A QUE EL JUGADOR ESCRIBA SU RESPUESTA A/B/C. */
+	/** ESPERA LA RESPUESTA A/B/C DEL JUGADOR HASTA tiempoMs. */
 	private static String esperarRespuestaJugador(String nombre, int tiempoMs) {
 		long limite = System.currentTimeMillis() + tiempoMs;
 		while (System.currentTimeMillis() < limite) {
@@ -432,9 +404,8 @@ public class HostMain {
 	}
 
 	/*
-	 * PAGA EL PREMIO DE LA LINEA (10% DEL BOTE) O BINGO (TODO EL BOTE RESTANTE).
-	 * ANTES DE REPARTIR SE ACTUALIZA EL BOTE PARA INCLUIR LAS ÚLTIMAS MULTAS,
-	 * Y DESPUÉS SE VUELVE A PUBLICAR YA SIN EL PREMIO.
+	 * PAGA EL PREMIO: LÍNEA (% DEL BOTE) O BINGO (TODO EL BOTE).
+	 * ACTUALIZA EL BOTE ANTES Y DESPUÉS DE REPARTIR.
 	 */
 	private static void pagarPremio(String nombre, String tipo) {
 		actualizarBote();
@@ -460,7 +431,7 @@ public class HostMain {
 	}
 
 	private static void finalizarPartida(Estado estado) {
-		// ÚLTIMA ACTUALIZACIÓN: INCLUYE LAS MULTAS DE LAS ÚLTIMAS RESPUESTAS
+		// ÚLTIMA ACTUALIZACIÓN DEL BOTE
 		actualizarBote();
 
 		estado.setFase(Estado.FASE_FINALIZADA);
